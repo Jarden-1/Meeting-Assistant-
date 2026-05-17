@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>会议助手 - Live Recording</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-container": "#fffbff",
+                      "text-primary": "#1F2329",
+                      "surface-dim": "#d5dae5",
+                      "on-tertiary-fixed-variant": "#7b2e00",
+                      "surface-tint": "#0053db",
+                      "secondary-fixed": "#e5deff",
+                      "tertiary": "#9e3e00",
+                      "border-base": "#DEE0E3",
+                      "status-todo": "#3370FF",
+                      "bg-card": "#FFFFFF",
+                      "text-secondary": "#646A73",
+                      "on-tertiary-fixed": "#351000",
+                      "tertiary-container": "#c64f00",
+                      "secondary-container": "#7459f7",
+                      "inverse-on-surface": "#ecf1fc",
+                      "secondary-fixed-dim": "#c9bfff",
+                      "on-surface-variant": "#424655",
+                      "outline-variant": "#c3c6d8",
+                      "on-error": "#ffffff",
+                      "secondary": "#5b3cdd",
+                      "surface-container-low": "#eef4fe",
+                      "primary-container": "#e1eaff",
+                      "surface-variant": "#dde3ed",
+                      "on-surface": "#161c23",
+                      "text-placeholder": "#BBBFCC",
+                      "inverse-surface": "#2b3139",
+                      "status-high-risk": "#F54A45",
+                      "surface-container": "#e9eef9",
+                      "on-tertiary-container": "#fffbff",
+                      "surface": "#f8f9ff",
+                      "error-container": "#ffdad6",
+                      "surface-container-highest": "#dde3ed",
+                      "on-secondary-fixed": "#1a0063",
+                      "on-primary-container": "#001b3d",
+                      "bg-canvas": "#F5F6F7",
+                      "on-primary-fixed": "#001b3d",
+                      "error": "#ba1a1a",
+                      "status-unupdated": "#8F959E",
+                      "on-primary": "#ffffff",
+                      "background": "#f8f9ff",
+                      "primary-fixed-dim": "#b4c5ff",
+                      "tertiary-fixed-dim": "#ffb695",
+                      "primary": "#3370FF",
+                      "surface-container-high": "#e3e8f3",
+                      "on-secondary": "#ffffff",
+                      "surface-bright": "#f8f9ff",
+                      "tertiary-fixed": "#ffdbcc",
+                      "status-at-risk": "#FF8800",
+                      "surface-container-lowest": "#ffffff",
+                      "outline": "#737687",
+                      "primary-fixed": "#dbe1ff",
+                      "on-background": "#161c23",
+                      "on-tertiary": "#ffffff",
+                      "inverse-primary": "#b4c5ff",
+                      "on-secondary-fixed-variant": "#441cc8",
+                      "on-error-container": "#93000a",
+                      "on-primary-fixed-variant": "#003ea8"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "stack-xs": "4px",
+                      "stack-lg": "24px",
+                      "sidebar-collapsed": "64px",
+                      "sidebar-width": "240px",
+                      "stack-md": "16px",
+                      "container-max": "1440px",
+                      "margin-page": "24px",
+                      "stack-sm": "8px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "headline-md-mobile": ["Hanken Grotesk"],
+                      "headline-md": ["Hanken Grotesk"],
+                      "label-sm": ["Hanken Grotesk"],
+                      "headline-sm": ["Hanken Grotesk"],
+                      "label-md": ["Hanken Grotesk"],
+                      "title-md": ["Hanken Grotesk"],
+                      "body-lg": ["Hanken Grotesk"],
+                      "body-md": ["Hanken Grotesk"],
+                      "display-lg": ["Hanken Grotesk"]
+              },
+              "fontSize": {
+                      "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                      "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "label-md": ["12px", {"lineHeight": "18px", "fontWeight": "500"}],
+                      "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                      "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        .waveform-bar {
+            animation: pulse-height 1s ease-in-out infinite alternate;
+        }
+        @keyframes pulse-height {
+            0% { height: 4px; }
+            100% { height: 16px; }
+        }
+        .waveform-bar:nth-child(2) { animation-delay: 0.2s; }
+        .waveform-bar:nth-child(3) { animation-delay: 0.4s; }
+        .waveform-bar:nth-child(4) { animation-delay: 0.1s; }
+        .waveform-bar:nth-child(5) { animation-delay: 0.5s; }
+    </style>
+</head>
+<body class="bg-bg-canvas text-text-primary font-body-md text-body-md antialiased overflow-hidden flex h-screen">
+<!-- SideNavBar (from JSON) -->
+<nav class="fixed left-0 top-0 flex flex-col h-full z-40 w-[72px] border-r border-border-base bg-surface-container-lowest">
+<div class="h-16 flex items-center justify-center border-b border-border-base shrink-0">
+<div class="w-10 h-10 bg-primary rounded-xl text-on-primary flex items-center justify-center font-bold text-[12px] leading-tight text-center shadow-sm">
+会议<br/>助手
+</div>
+</div>
+<div class="flex-1 overflow-y-auto py-4 flex flex-col gap-2 items-center">
+<!-- Active Tab -->
+<a class="flex flex-col items-center justify-center w-14 h-14 rounded-xl text-primary bg-primary/10 font-medium transition-all duration-200" href="#">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">event_note</span>
+<span class="text-[11px] mt-1">会议议题</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex flex-col items-center justify-center w-14 h-14 rounded-xl text-text-secondary hover:bg-surface-container transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">checklist</span>
+<span class="text-[11px] mt-1">我的待办</span>
+</a>
+<a class="flex flex-col items-center justify-center w-14 h-14 rounded-xl text-text-secondary hover:bg-surface-container transition-colors mt-auto" href="#">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+<span class="text-[11px] mt-1">设置</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="ml-[72px] flex-1 flex flex-col min-w-0 h-screen">
+<!-- TopAppBar -->
+<header class="flex items-center justify-between h-16 px-margin-page sticky top-0 z-30 border-b border-border-base bg-surface-container-lowest shrink-0">
+<!-- Left: Brand/Context -->
+<div class="flex items-center gap-4">
+<span class="font-headline-sm text-headline-sm font-bold text-primary">Workspace</span>
+<div class="h-4 w-[1px] bg-border-base"></div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-status-high-risk animate-pulse"></span>
+<span class="font-title-md text-title-md text-text-primary">2024Q1 战略执行与部门协同议题</span>
+<span class="font-label-md text-label-md text-text-secondary ml-2 font-mono">01:24:15</span>
+</div>
+</div>
+<!-- Right: Actions -->
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border-base bg-surface-container-lowest hover:text-primary transition-all text-text-primary">
+<span class="material-symbols-outlined text-[18px] text-secondary">smart_toy</span>
+<span class="font-label-md text-label-md">问AI</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-1.5 rounded-md bg-status-high-risk text-on-error hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-[18px]">stop_circle</span>
+<span class="font-label-md text-label-md font-bold">结束会议</span>
+</button>
+</div>
+</header>
+<!-- Workspace Canvas -->
+<main class="flex-1 flex gap-gutter p-margin-page overflow-hidden bg-bg-canvas">
+<!-- Left: Real-time Transcript Area -->
+<section class="flex-1 bg-bg-card rounded-xl border border-border-base flex flex-col shadow-sm overflow-hidden relative">
+<!-- Inner Header -->
+<div class="h-12 border-b border-border-base px-6 flex items-center justify-between bg-surface-bright shrink-0">
+<span class="font-title-md text-title-md text-text-primary flex items-center gap-2">
+<span class="material-symbols-outlined text-text-secondary text-[18px]">graphic_eq</span>
+                        实时语音转写
+                    </span>
+<span class="font-label-sm text-label-sm text-text-secondary">支持多语种自动识别</span>
+</div>
+<!-- Scrollable Transcript Flow -->
+<div class="flex-1 overflow-y-auto p-6 flex flex-col gap-stack-lg"><div class="flex items-center justify-between bg-surface-container-low/50 px-4 py-2 rounded-lg border border-border-base border-opacity-50 shrink-0 mb-2">
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-status-high-risk animate-pulse shadow-[0_0_8px_rgba(245,74,69,0.5)]"></span>
+<span class="font-title-md text-title-md text-text-primary">正在录音...</span>
+</div>
+<div class="h-4 w-[1px] bg-border-base mx-1"></div>
+<span class="font-label-md text-label-md text-text-secondary">高清模式已开启</span>
+</div>
+<button class="flex items-center gap-2 px-3 py-1.5 rounded-md bg-primary text-on-primary hover:bg-primary-container transition-colors shadow-sm active:scale-95">
+<span class="material-symbols-outlined text-[18px]">pause_circle</span>
+<span class="font-label-md text-label-md font-bold">暂停录音</span>
+</button>
+</div>
+<!-- Speaker Block 1 -->
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-[14px] shrink-0">
+                            ZJ
+                        </div>
+<div class="flex flex-col gap-1 w-full max-w-3xl">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-text-primary">张建国</span>
+<span class="font-label-sm text-label-sm text-text-placeholder">10:05:12</span>
+</div>
+<div class="bg-surface-container-low px-4 py-3 rounded-r-xl rounded-bl-xl text-text-primary leading-relaxed border border-border-base border-opacity-50">
+                                大家都到齐了吧？我们现在开始。今天主要对齐一下2024年第一季度的战略执行情况。特别是研发和市场部门的协同问题，上周的反馈来看，进度有些滞后。
+                            </div>
+</div>
+</div>
+<!-- Speaker Block 2 -->
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-bold text-[14px] shrink-0">
+                            LH
+                        </div>
+<div class="flex flex-col gap-1 w-full max-w-3xl">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-text-primary">李华</span>
+<span class="font-label-sm text-label-sm text-text-placeholder">10:07:30</span>
+</div>
+<div class="bg-surface-container-lowest px-4 py-3 rounded-r-xl rounded-bl-xl text-text-primary leading-relaxed border border-border-base border-opacity-50">
+                                张总，研发这边的主要瓶颈在于需求文档的确认环节。市场部那边给出的需求经常变动，导致我们的迭代计划总是被打乱。我们需要建立一个更严格的需求锁定机制。
+                            </div>
+</div>
+</div>
+<!-- Speaker Block 3 -->
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary-fixed text-on-tertiary-fixed flex items-center justify-center font-bold text-[14px] shrink-0">
+                            WF
+                        </div>
+<div class="flex flex-col gap-1 w-full max-w-3xl">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-text-primary">王芳</span>
+<span class="font-label-sm text-label-sm text-text-placeholder">10:09:15</span>
+</div>
+<div class="bg-surface-container-lowest px-4 py-3 rounded-r-xl rounded-bl-xl text-text-primary leading-relaxed border border-border-base border-opacity-50">
+                                市场环境变化太快了，有些变动是客户临时要求的，我们也很被动。不过李华说的对，流程上确实需要优化。我建议设立每周一次的需求评审会。
+                            </div>
+</div>
+</div>
+<!-- Active Speaker Block -->
+<div class="flex gap-4 opacity-90">
+<div class="w-10 h-10 rounded-full bg-primary-fixed text-on-primary-fixed flex items-center justify-center font-bold text-[14px] shrink-0 relative">
+                            ZJ
+                            <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-status-todo rounded-full border-2 border-bg-card"></span>
+</div>
+<div class="flex flex-col gap-1 w-full max-w-3xl">
+<div class="flex items-baseline gap-2">
+<span class="font-title-md text-title-md text-text-primary">张建国</span>
+<span class="font-label-sm text-label-sm text-text-placeholder">实时</span>
+</div>
+<div class="bg-surface-container-low px-4 py-3 rounded-r-xl rounded-bl-xl text-text-primary leading-relaxed border border-primary border-opacity-30 shadow-sm relative overflow-hidden">
+<span class="relative z-10">很好，那就这么定下来。王芳，你牵头把这个需求评审机制的初稿整理出来，周三前发给大家。另外...</span>
+<div class="absolute bottom-2 right-4 flex items-end gap-1 h-4 opacity-40">
+<div class="waveform-bar w-1 bg-primary rounded-t-sm"></div>
+<div class="waveform-bar w-1 bg-primary rounded-t-sm"></div>
+<div class="waveform-bar w-1 bg-primary rounded-t-sm"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Right: AI Assistant Panel (Active State) -->
+<aside class="w-[340px] bg-bg-card rounded-xl border border-border-base flex flex-col shadow-lg overflow-hidden shrink-0 relative z-10">
+<!-- AI Panel Header -->
+<div class="h-14 border-b border-border-base px-5 flex items-center justify-between bg-surface-container-lowest shrink-0">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">smart_toy</span>
+</div>
+<span class="font-title-md text-title-md text-text-primary font-semibold">会议 AI 助手</span>
+</div>
+<button class="text-text-secondary hover:text-text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- AI Listening State Banner -->
+<div class="bg-surface-container px-5 py-3 border-b border-border-base flex items-center gap-3 shrink-0">
+<div class="flex items-end gap-1 h-3">
+<div class="waveform-bar w-1 bg-secondary rounded-full"></div>
+<div class="waveform-bar w-1 bg-secondary rounded-full"></div>
+<div class="waveform-bar w-1 bg-secondary rounded-full"></div>
+<div class="waveform-bar w-1 bg-secondary rounded-full"></div>
+<div class="waveform-bar w-1 bg-secondary rounded-full"></div>
+</div>
+<span class="font-label-md text-label-md text-secondary font-medium">AI 正在实时收听并分析内容...</span>
+</div>
+<!-- AI Chat Area -->
+<div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+<!-- Suggestion Chips -->
+<div class="flex flex-col gap-2">
+<span class="font-label-sm text-label-sm text-text-secondary uppercase tracking-wider">快捷指令</span>
+<button class="text-left px-3 py-2 rounded-lg border border-border-base bg-surface-container-lowest hover:bg-surface-container transition-colors font-body-sm text-body-sm text-text-primary">
+                            总结刚才张总的发言重点
+                        </button>
+<button class="text-left px-3 py-2 rounded-lg border border-border-base bg-surface-container-lowest hover:bg-surface-container transition-colors font-body-sm text-body-sm text-text-primary">
+                            提取目前已确定的待办事项
+                        </button>
+<button class="text-left px-3 py-2 rounded-lg border border-border-base bg-surface-container-lowest hover:bg-surface-container transition-colors font-body-sm text-body-sm text-text-primary">
+                            分析市场部和研发部的核心分歧点
+                        </button>
+</div>
+<div class="mt-4 border-t border-border-base pt-4">
+<div class="flex items-start gap-3">
+<div class="w-6 h-6 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[14px]">smart_toy</span>
+</div>
+<div class="font-body-sm text-body-sm text-text-primary leading-relaxed">
+                                您好！我正在旁听会议。您可以随时向我提问，或者让我帮您整理纪要和待办。
+                            </div>
+</div>
+</div>
+</div>
+<!-- AI Input Area -->
+<div class="p-4 border-t border-border-base bg-surface-container-lowest shrink-0">
+<div class="relative">
+<input class="w-full bg-surface-container-low border border-border-base rounded-lg py-2.5 pl-3 pr-10 font-body-sm text-body-sm text-text-primary focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-shadow placeholder:text-text-placeholder" placeholder="向 AI 提问或下达指令..." type="text"/>
+<button class="absolute right-2 top-1/2 -translate-y-1/2 text-primary hover:text-primary-fixed-variant transition-colors p-1 rounded-md">
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

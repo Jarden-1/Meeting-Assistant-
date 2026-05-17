@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#dde3ed",
+                        "status-todo": "#3370FF",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-secondary-fixed": "#1a0063",
+                        "on-primary-fixed": "#00174b",
+                        "surface-tint": "#0053db",
+                        "bg-card": "#FFFFFF",
+                        "surface-container-high": "#e3e8f3",
+                        "border-base": "#DEE0E3",
+                        "text-primary": "#1F2329",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-low": "#eef4fe",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-primary": "#b4c5ff",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#2a6af9",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "surface-variant": "#dde3ed",
+                        "on-secondary-fixed-variant": "#441cc8",
+                        "secondary-fixed-dim": "#c9bfff",
+                        "tertiary-container": "#c64f00",
+                        "text-secondary": "#646A73",
+                        "surface-dim": "#d5dae5",
+                        "secondary-fixed": "#e5deff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "status-at-risk": "#FF8800",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#737687",
+                        "background": "#f8f9ff",
+                        "outline-variant": "#c3c6d8",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-secondary-container": "#fffbff",
+                        "secondary": "#5b3cdd",
+                        "surface-container": "#e9eef9",
+                        "on-background": "#161c23",
+                        "on-primary-container": "#fefcff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#7459f7",
+                        "on-secondary": "#ffffff",
+                        "text-placeholder": "#BBBFCC",
+                        "on-surface": "#161c23",
+                        "on-surface-variant": "#424655",
+                        "inverse-on-surface": "#ecf1fc",
+                        "tertiary": "#9e3e00",
+                        "on-tertiary-container": "#fffbff",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-fixed-variant": "#7b2e00",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2b3139",
+                        "bg-canvas": "#F5F6F7",
+                        "status-unupdated": "#8F959E",
+                        "primary": "#3370FF",
+                        "status-high-risk": "#F54A45"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "sidebar-width": "240px",
+                        "stack-xs": "4px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "gutter": "16px",
+                        "margin-page": "24px",
+                        "stack-sm": "8px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-md-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "18px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: #F5F6F7;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen text-text-primary">
+<!-- SideNavBar (Shared Component) -->
+<aside class="fixed h-screen left-0 w-sidebar-width bg-surface dark:bg-surface-dim border-r border-border-base dark:border-outline flex flex-col py-stack-lg z-50">
+<!-- Logo Section -->
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">assignment</span>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary dark:text-primary-fixed-dim">会议助手</h1>
+<p class="font-label-md text-label-md text-text-secondary opacity-70">企业协作系统</p>
+</div>
+</div>
+</div>
+<!-- Navigation Tabs -->
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-3 text-text-secondary dark:text-on-surface-variant font-medium hover:bg-surface-container-high dark:hover:bg-surface-variant hover:text-text-primary transition-all duration-200 rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">assignment</span>
+<span class="font-label-md text-label-md">会议议题</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-3 text-text-secondary dark:text-on-surface-variant font-medium hover:bg-surface-container-high dark:hover:bg-surface-variant hover:text-text-primary transition-all duration-200 rounded-lg group" href="#">
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">check_circle</span>
+<span class="font-label-md text-label-md">我的待办</span>
+</a>
+<!-- Active State for Settings -->
+<a class="flex items-center gap-3 px-3 py-3 text-primary dark:text-primary-fixed-dim font-bold border-r-2 border-primary bg-surface-container-low dark:bg-surface-variant translate-x-1 transition-transform duration-200 rounded-l-lg group" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-md text-label-md">设置</span>
+</a>
+</nav>
+<!-- Profile / Bottom -->
+<div class="mt-auto px-4 pt-4 border-t border-border-base">
+<div class="flex items-center gap-3 p-2 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer">
+<img alt="用户头像" class="w-8 h-8 rounded-full border border-border-base" data-alt="A professional headshot of a modern corporate executive in a bright, airy office environment. The lighting is soft and natural, emphasizing a clean and high-end aesthetic. The subject is wearing a sharp, minimal business casual outfit. The color palette is composed of soft grays, whites, and corporate blues, maintaining a sense of reliability and structured calm." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk6PQyKY4_rkTsrWhjUcCCAoHqSLLx9esU5Gx_Z_V1avGcg7E969ijABuR-tYpZixlOLl0EslGVGfep8wIqWaqB2utxGcQFO8T-Z8VTk1u6mJwRxFLU0GXpfq1OdFljIWedYqcqKJg1rUsVxCIAwOjRAZmJf2iXBj58qgezp0n4S3LrmawoYmYXGjYuX_vTCaUkokFusrs7n3x9SUKBEmPuzfHHlG2cYcd5l4zFBuwTrWr3GUeVadDqkASQs4NJqCt1eCNM8onNQs"/>
+<div class="overflow-hidden">
+<p class="font-title-md text-title-md truncate">张经理</p>
+<p class="font-label-sm text-label-sm text-text-secondary truncate">系统管理员</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-sidebar-width flex-1 flex flex-col min-w-0">
+<!-- TopAppBar (Shared Component) -->
+<header class="h-16 flex justify-between items-center px-margin-page w-full bg-bg-card dark:bg-inverse-surface border-b border-border-base dark:border-outline sticky top-0 z-40">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative max-w-md w-full">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder">search</span>
+<input class="w-full bg-surface-container-lowest border border-border-base rounded-full py-1.5 pl-10 pr-4 font-body-md text-body-md focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none transition-all" placeholder="全局搜索配置项..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-low transition-colors text-text-secondary">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-low transition-colors text-text-secondary">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-8 w-[1px] bg-border-base mx-2"></div>
+<div class="flex items-center gap-2">
+<div class="text-right hidden sm:block">
+<p class="font-label-md text-label-md font-bold">会议助手</p>
+<p class="font-label-sm text-label-sm text-text-secondary">v2.4.0-stable</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Settings Page Content -->
+<div class="p-margin-page max-w-4xl mx-auto w-full">
+<!-- Header Section -->
+<div class="mb-8">
+<h2 class="font-headline-md text-headline-md text-text-primary mb-2">系统设置</h2>
+<p class="font-body-md text-body-md text-text-secondary">配置协作平台的底层模型供应和 API 通讯参数。</p>
+</div>
+<!-- Configuration Card -->
+<div class="bg-bg-card rounded-xl border border-border-base overflow-hidden">
+<div class="px-6 py-4 border-b border-border-base bg-[#F8F9FA]">
+<h3 class="font-title-md text-title-md font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[20px]" style="font-variation-settings: 'FILL' 1;">model_training</span>
+                        模型服务配置
+                    </h3>
+</div>
+<form class="p-6 space-y-6">
+<!-- Provider -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+<div>
+<label class="block font-title-md text-title-md text-text-primary mb-1">提供商 (Provider)</label>
+<p class="font-label-md text-label-md text-text-secondary">选择底层大模型服务商</p>
+</div>
+<div class="md:col-span-2">
+<select class="w-full bg-white border border-border-base rounded-lg py-2.5 px-4 font-body-md text-body-md focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none appearance-none cursor-pointer">
+<option>Azure OpenAI Service</option>
+<option>Anthropic Claude</option>
+<option>Google Vertex AI</option>
+<option>DeepSeek AI</option>
+<option>自定义提供商 (OpenAI Compatible)</option>
+</select>
+</div>
+</div>
+<hr class="border-border-base opacity-50"/>
+<!-- Base URL -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+<div>
+<label class="block font-title-md text-title-md text-text-primary mb-1">Base URL</label>
+<p class="font-label-md text-label-md text-text-secondary">API 请求的基础路径</p>
+</div>
+<div class="md:col-span-2">
+<input class="w-full bg-white border border-border-base rounded-lg py-2.5 px-4 font-body-md text-body-md focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none placeholder:text-text-placeholder" placeholder="https://api.example.com/v1" type="text"/>
+</div>
+</div>
+<hr class="border-border-base opacity-50"/>
+<!-- API Key -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+<div>
+<label class="block font-title-md text-title-md text-text-primary mb-1">API Key</label>
+<p class="font-label-md text-label-md text-text-secondary">用于身份验证的密钥令牌</p>
+</div>
+<div class="md:col-span-2 relative">
+<input class="w-full bg-white border border-border-base rounded-lg py-2.5 px-4 font-body-md text-body-md focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none placeholder:text-text-placeholder" placeholder="sk-........................" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+</div>
+</div>
+<hr class="border-border-base opacity-50"/>
+<!-- Model Version -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+<div>
+<label class="block font-title-md text-title-md text-text-primary mb-1">模型版本 (Model Version)</label>
+<p class="font-label-md text-label-md text-text-secondary">指定调用的具体模型 ID</p>
+</div>
+<div class="md:col-span-2">
+<div class="flex gap-2">
+<input class="flex-1 bg-white border border-border-base rounded-lg py-2.5 px-4 font-body-md text-body-md focus:ring-2 focus:ring-primary/10 focus:border-primary outline-none placeholder:text-text-placeholder" placeholder="gpt-4o-2024-05-13" type="text"/>
+<button class="px-4 border border-border-base rounded-lg bg-surface hover:bg-surface-container-low transition-colors text-text-secondary" type="button">
+<span class="material-symbols-outlined">refresh</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="pt-6 flex items-center justify-between border-t border-border-base">
+<div class="flex items-center gap-2 text-status-todo bg-surface-container-low px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-[16px]">info</span>
+<span class="font-label-md text-label-md">配置更改将即时应用于所有协作会议。</span>
+</div>
+<div class="flex gap-3">
+<button class="px-6 py-2.5 border border-border-base text-text-primary bg-white rounded-lg font-title-md text-title-md hover:bg-surface transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[20px]">hub</span>
+                                测试连接
+                            </button>
+<button class="px-8 py-2.5 bg-primary text-white rounded-lg font-title-md text-title-md hover:opacity-90 transition-all shadow-sm active:scale-[0.98]" type="submit">
+                                保存配置
+                            </button>
+</div>
+</div>
+</form>
+</div>
+<!-- Footer Help -->
+<div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="p-4 bg-white border border-border-base rounded-xl flex items-start gap-3">
+<div class="w-10 h-10 bg-[#E8F0FF] rounded-lg flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-primary">menu_book</span>
+</div>
+<div>
+<p class="font-title-md text-title-md font-bold mb-1">配置文档</p>
+<p class="font-body-md text-body-md text-text-secondary">查看如何获取各服务商的 API Key 详情。</p>
+<a class="mt-2 inline-block font-label-md text-label-md text-primary font-bold" href="#">阅读更多 →</a>
+</div>
+</div>
+<div class="p-4 bg-white border border-border-base rounded-xl flex items-start gap-3">
+<div class="w-10 h-10 bg-[#FFF5EB] rounded-lg flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-status-at-risk">security</span>
+</div>
+<div>
+<p class="font-title-md text-title-md font-bold mb-1">安全提示</p>
+<p class="font-body-md text-body-md text-text-secondary">Key 仅用于服务器侧通讯，已进行本地 AES 256 加密。</p>
+<a class="mt-2 inline-block font-label-md text-label-md text-primary font-bold" href="#">安全规范 →</a>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

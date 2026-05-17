@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>会议助手 - AI 生成状态</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS Setup -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#fffbff",
+                        "text-primary": "#1F2329",
+                        "surface-dim": "#d5dae5",
+                        "on-tertiary-fixed-variant": "#7b2e00",
+                        "surface-tint": "#0053db",
+                        "secondary-fixed": "#e5deff",
+                        "tertiary": "#9e3e00",
+                        "border-base": "#DEE0E3",
+                        "status-todo": "#3370FF",
+                        "bg-card": "#FFFFFF",
+                        "text-secondary": "#646A73",
+                        "on-tertiary-fixed": "#351000",
+                        "tertiary-container": "#c64f00",
+                        "secondary-container": "#7459f7",
+                        "inverse-on-surface": "#ecf1fc",
+                        "secondary-fixed-dim": "#c9bfff",
+                        "on-surface-variant": "#424655",
+                        "outline-variant": "#c3c6d8",
+                        "on-error": "#ffffff",
+                        "secondary": "#5b3cdd",
+                        "surface-container-low": "#eef4fe",
+                        "primary-container": "#2a6af9",
+                        "surface-variant": "#dde3ed",
+                        "on-surface": "#161c23",
+                        "text-placeholder": "#BBBFCC",
+                        "inverse-surface": "#2b3139",
+                        "status-high-risk": "#F54A45",
+                        "surface-container": "#e9eef9",
+                        "on-tertiary-container": "#fffbff",
+                        "surface": "#f8f9ff",
+                        "error-container": "#ffdad6",
+                        "surface-container-highest": "#dde3ed",
+                        "on-secondary-fixed": "#1a0063",
+                        "on-primary-container": "#fefcff",
+                        "bg-canvas": "#F5F6F7",
+                        "on-primary-fixed": "#00174b",
+                        "error": "#ba1a1a",
+                        "status-unupdated": "#8F959E",
+                        "on-primary": "#ffffff",
+                        "background": "#f8f9ff",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "primary": "#0050d6",
+                        "surface-container-high": "#e3e8f3",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f8f9ff",
+                        "tertiary-fixed": "#ffdbcc",
+                        "status-at-risk": "#FF8800",
+                        "surface-container-lowest": "#ffffff",
+                        "outline": "#737687",
+                        "primary-fixed": "#dbe1ff",
+                        "on-background": "#161c23",
+                        "on-tertiary": "#ffffff",
+                        "inverse-primary": "#b4c5ff",
+                        "on-secondary-fixed-variant": "#441cc8",
+                        "on-error-container": "#93000a",
+                        "on-primary-fixed-variant": "#003ea8"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack-xs": "4px",
+                        "stack-lg": "24px",
+                        "sidebar-collapsed": "64px",
+                        "sidebar-width": "240px",
+                        "stack-md": "16px",
+                        "container-max": "1440px",
+                        "margin-page": "24px",
+                        "stack-sm": "8px",
+                        "gutter": "16px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }],
+                        "label-md": ["12px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-surface text-text-primary font-body-md h-screen overflow-hidden antialiased flex flex-col">
+<!-- Branding Header (Positioned at Top) -->
+<header class="absolute top-0 left-0 w-full p-stack-lg flex flex-col items-center">
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">会议助手</h1>
+<p class="font-label-sm text-label-sm text-text-secondary">Efficiency First</p>
+</header>
+<!-- Main Centered Content Area -->
+<main class="flex-1 flex items-center justify-center p-margin-page">
+<!-- Central Status Card -->
+<div class="w-full max-w-2xl bg-bg-card border border-border-base rounded-xl shadow-[0_4px_12px_rgba(31,35,41,0.06)] p-[48px] flex flex-col items-center">
+<!-- Elegant Icon / Visual Anchor -->
+<div class="w-24 h-24 rounded-full bg-surface-container-low flex items-center justify-center mb-stack-lg relative">
+<!-- Faux-glow effect for "AI/Magic" feel using standard tokens -->
+<div class="absolute inset-0 rounded-full border border-primary-fixed opacity-50 scale-110"></div>
+<span class="material-symbols-outlined text-[48px] text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+</div>
+<!-- Main Status Text -->
+<h2 class="font-headline-md text-headline-md text-text-primary text-center mb-stack-sm">
+            会议已结束，AI 正在深度智能分析并生成会议报告...
+        </h2>
+<p class="font-body-md text-body-md text-text-secondary text-center mb-stack-lg max-w-md">
+            请稍候，我们正在为您提炼会议精华，生成结构化文档与待办清单。
+        </p>
+<!-- Progress Bar Container -->
+<div class="w-full max-w-md mb-stack-lg">
+<div class="flex justify-between items-center mb-stack-xs">
+<span class="font-label-sm text-label-sm text-text-secondary">分析进度</span>
+<span class="font-label-sm text-label-sm text-primary font-bold">65%</span>
+</div>
+<div class="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+<!-- Progress Fill (Static representation of 65%) -->
+<div class="h-full bg-primary rounded-full w-[65%] shadow-[inset_0_1px_2px_rgba(255,255,255,0.3)]"></div>
+</div>
+</div>
+<!-- Detailed Steps List -->
+<div class="w-full max-w-md flex flex-col gap-stack-md mt-stack-sm">
+<!-- Step 1: Completed -->
+<div class="flex items-center gap-stack-md p-stack-sm rounded-lg bg-surface-bright">
+<span class="material-symbols-outlined text-status-todo" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<div class="flex-1">
+<span class="font-body-md text-body-md text-text-secondary">提取核心观点...</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-secondary">已完成</span>
+</div>
+<!-- Step 2: Active / In Progress -->
+<div class="flex items-center gap-stack-md p-stack-sm rounded-lg border border-primary-fixed bg-surface-container-low shadow-[0_2px_4px_rgba(0,80,214,0.05)]">
+<span class="material-symbols-outlined text-primary">sync</span>
+<div class="flex-1">
+<span class="font-title-md text-title-md text-text-primary">整理待办事项...</span>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-bold">进行中</span>
+</div>
+<!-- Step 3: Pending -->
+<div class="flex items-center gap-stack-md p-stack-sm rounded-lg opacity-60">
+<span class="material-symbols-outlined text-text-placeholder">radio_button_unchecked</span>
+<div class="flex-1">
+<span class="font-body-md text-body-md text-text-placeholder">润色会议纪要...</span>
+</div>
+<span class="font-label-sm text-label-sm text-text-placeholder">等待中</span>
+</div>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#dde3ed",
+                    "status-todo": "#3370FF",
+                    "tertiary-fixed": "#ffdbcc",
+                    "on-secondary-fixed": "#1a0063",
+                    "on-primary-fixed": "#00174b",
+                    "surface-tint": "#0053db",
+                    "bg-card": "#FFFFFF",
+                    "surface-container-high": "#e3e8f3",
+                    "border-base": "#DEE0E3",
+                    "text-primary": "#1F2329",
+                    "on-tertiary-fixed": "#351000",
+                    "surface-container-low": "#eef4fe",
+                    "on-error-container": "#93000a",
+                    "surface": "#f8f9ff",
+                    "surface-bright": "#f8f9ff",
+                    "inverse-primary": "#b4c5ff",
+                    "on-primary": "#ffffff",
+                    "primary-container": "#2a6af9",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "surface-variant": "#dde3ed",
+                    "on-secondary-fixed-variant": "#441cc8",
+                    "secondary-fixed-dim": "#c9bfff",
+                    "tertiary-container": "#c64f00",
+                    "text-secondary": "#646A73",
+                    "surface-dim": "#d5dae5",
+                    "secondary-fixed": "#e5deff",
+                    "tertiary-fixed-dim": "#ffb695",
+                    "status-at-risk": "#FF8800",
+                    "on-tertiary": "#ffffff",
+                    "outline": "#737687",
+                    "background": "#f8f9ff",
+                    "outline-variant": "#c3c6d8",
+                    "on-primary-fixed-variant": "#003ea8",
+                    "on-secondary-container": "#fffbff",
+                    "secondary": "#5b3cdd",
+                    "surface-container": "#e9eef9",
+                    "on-background": "#161c23",
+                    "on-primary-container": "#fefcff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error": "#ffffff",
+                    "secondary-container": "#7459f7",
+                    "on-secondary": "#ffffff",
+                    "text-placeholder": "#BBBFCC",
+                    "on-surface": "#161c23",
+                    "on-surface-variant": "#424655",
+                    "inverse-on-surface": "#ecf1fc",
+                    "tertiary": "#9e3e00",
+                    "on-tertiary-container": "#fffbff",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#dbe1ff",
+                    "on-tertiary-fixed-variant": "#7b2e00",
+                    "error-container": "#ffdad6",
+                    "inverse-surface": "#2b3139",
+                    "bg-canvas": "#F5F6F7",
+                    "status-unupdated": "#8F959E",
+                    "primary": "#3370FF",
+                    "status-high-risk": "#F54A45"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "container-max": "1440px",
+                    "sidebar-width": "240px",
+                    "stack-xs": "4px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "gutter": "16px",
+                    "margin-page": "24px",
+                    "stack-sm": "8px",
+                    "sidebar-collapsed": "64px"
+            },
+            "fontFamily": {
+                    "body-lg": ["Hanken Grotesk"],
+                    "headline-md": ["Hanken Grotesk"],
+                    "display-lg": ["Hanken Grotesk"],
+                    "headline-sm": ["Hanken Grotesk"],
+                    "title-md": ["Hanken Grotesk"],
+                    "label-md": ["Hanken Grotesk"],
+                    "body-md": ["Hanken Grotesk"],
+                    "label-sm": ["Hanken Grotesk"],
+                    "headline-md-mobile": ["Hanken Grotesk"]
+            },
+            "fontSize": {
+                    "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                    "label-md": ["12px", {"lineHeight": "18px", "fontWeight": "500"}],
+                    "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                    "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                    "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-bg-canvas text-text-primary">
+<!-- Sidebar Wrapper -->
+<aside class="fixed h-screen left-0 w-sidebar-width bg-surface border-r border-border-base flex flex-col py-stack-lg z-50">
+<div class="px-stack-lg mb-10 flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white">
+<span class="material-symbols-outlined" style='font-variation-settings: "FILL" 1;'>dashboard_customize</span>
+</div>
+<div>
+<h1 class="font-headline-sm text-headline-sm font-bold text-primary">会议助手</h1>
+<p class="font-label-md text-label-md text-text-secondary">企业协作系统</p>
+</div>
+</div>
+<nav class="flex-1 px-3 space-y-1">
+<!-- Active Navigation -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-primary font-bold border-r-2 border-primary bg-surface-container-low transition-all duration-200 translate-x-1" href="#">
+<span class="material-symbols-outlined" data-icon="assignment">assignment</span>
+<span class="font-label-md text-label-md">会议议题</span>
+</a>
+<!-- Inactive Navigations -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-secondary font-medium hover:bg-surface-container-high hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="check_circle">check_circle</span>
+<span class="font-label-md text-label-md">我的待办</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-text-secondary font-medium hover:bg-surface-container-high hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-label-md text-label-md">设置</span>
+</a>
+</nav>
+<div class="px-6 py-4 border-t border-border-base">
+<div class="flex items-center gap-3">
+<img alt="用户头像" class="w-8 h-8 rounded-full bg-surface-container-highest" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcby9rv3RSfBhekcCEZBH7yQQm0-4DLuBEM9vOkGZFqT5BdCNaGeO6zl1Ys0rkK_s-kmXoO_ouW-eC-wAhFD9MZnHXQ7UO6KRweaPe1PlkQkFaraq3Dxj0uUTsw341-09oEmuVDuO_4wAD_mh-9hVPQDM3sff-SQDLn1wQhnv5kmyhv52PVIP_GubqLPklFrV_NHsEk276JQRjmee_mUu3seOjHH-yKS1yUrcw6AzEtNnhyNd_EhblMtzuYf5ztWnYsqu2RqFzxRQ"/>
+<div class="overflow-hidden">
+<p class="font-title-md text-title-md truncate">张经理</p>
+<p class="font-label-sm text-label-sm text-text-secondary truncate">系统管理员</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<main class="ml-sidebar-width min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="h-16 px-margin-page w-full flex justify-between items-center bg-bg-card border-b border-border-base sticky top-0 z-40">
+<div class="flex items-center gap-stack-md flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface rounded-xl border border-border-base focus:border-primary focus:ring-2 focus:ring-primary/10 text-body-md font-body-md transition-all outline-none" placeholder="搜索议题、标签或负责人..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-stack-md">
+<button class="p-2 hover:bg-surface-container-low rounded-xl transition-colors text-text-secondary">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 hover:bg-surface-container-low rounded-xl transition-colors text-text-secondary">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<div class="h-6 w-px bg-border-base mx-2"></div>
+<button class="bg-primary text-white px-5 py-2 rounded-xl font-title-md text-title-md hover:opacity-90 active:scale-95 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">add</span>
+                    新建议题
+                </button>
+</div>
+</header>
+<!-- Page Canvas -->
+<div class="p-margin-page space-y-stack-lg max-w-[1440px]">
+<!-- Page Title & Summary -->
+<div class="flex items-baseline gap-3">
+<h2 class="font-display-lg text-display-lg">会议议题</h2>
+<span class="px-2 py-0.5 bg-surface-container-highest text-text-secondary rounded-full font-label-md text-label-md">124 个议题</span>
+</div>
+<!-- Bento Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-stack-md">
+<div class="bg-bg-card border border-border-base rounded-xl p-stack-lg flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-text-secondary mb-1">议题总数</p>
+<h3 class="font-display-lg text-display-lg">124</h3>
+</div>
+<div class="w-12 h-12 bg-surface-container-low rounded-full flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]" style='font-variation-settings: "FILL" 1;'>analytics</span>
+</div>
+</div>
+<div class="bg-bg-card border border-border-base rounded-xl p-stack-lg flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-text-secondary mb-1">严重卡点议题</p>
+<h3 class="font-display-lg text-display-lg text-status-high-risk">12</h3>
+</div>
+<div class="w-12 h-12 bg-[#FFF0F0] rounded-full flex items-center justify-center text-status-high-risk">
+<span class="material-symbols-outlined text-[28px]" style='font-variation-settings: "FILL" 1;'>report</span>
+</div>
+</div>
+<div class="bg-bg-card border border-border-base rounded-xl p-stack-lg flex items-center justify-between">
+<div>
+<p class="font-label-md text-label-md text-text-secondary mb-1">待处理事项</p>
+<h3 class="font-display-lg text-display-lg text-status-todo">45</h3>
+</div>
+<div class="w-12 h-12 bg-[#E8F0FF] rounded-full flex items-center justify-center text-status-todo">
+<span class="material-symbols-outlined text-[28px]" style='font-variation-settings: "FILL" 1;'>assignment_turned_in</span>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<div class="bg-bg-card border border-border-base rounded-xl overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#F8F9FA] border-b border-border-base">
+<th class="px-6 py-4 font-label-md text-label-md text-text-secondary uppercase tracking-wider">议题名称</th>
+<th class="px-6 py-4 font-label-md text-label-md text-text-secondary uppercase tracking-wider">待办数量</th>
+<th class="px-6 py-4 font-label-md text-label-md text-text-secondary uppercase tracking-wider">最后更新</th>
+<th class="px-6 py-4 font-label-md text-label-md text-text-secondary uppercase tracking-wider">参与成员</th>
+<th class="px-6 py-4 w-20"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-base">
+<!-- Row 1 -->
+<tr class="group hover:bg-surface transition-colors cursor-pointer relative">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-placeholder">description</span>
+<span class="font-title-md text-title-md group-hover:text-primary transition-colors">2024 年度战略规划与预算审批</span>
+</div>
+<!-- Hover Preview Popover (Absolute) -->
+<div class="invisible group-hover:visible absolute z-50 left-6 top-full mt-2 w-72 bg-bg-card border border-border-base rounded-xl p-stack-md shadow-[0_8px_24px_rgba(31,35,41,0.12)]">
+<div class="flex items-center gap-2 mb-2">
+<img alt="议题预览" class="w-10 h-10 rounded-lg bg-surface-container" data-alt="A stylized geometric graphic showing corporate growth arrows and structural blocks in deep primary blue and professional gray, reflecting a high-level strategic planning theme in a clean, modern digital aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB3v6ExknBFmEben0iEGvC9ZyCT-lLre9dd_6aHfkQDeRmZ2a0TNekXDnMcu5PizLwfUoHB88paZa-zh4QnHuavV0zTe0vGKlNxyVWLYGgsEHCZ4GUUXmhOmtnJHRxW7CIWyfrQdN2AvFl0VYbUjRG-ZPm5QUJnSw2tHglWBNwWA9q1ipFrYZzg6U5cTPfnsVLKs9ioaNT2rkpBS6mYatdtIiQOVMAASATAJ5-LF_cefnaeZfy3EJghwntUCHTPUVo8gWLm85WF7zU"/>
+<p class="font-title-md text-title-md">详细摘要</p>
+</div>
+<p class="font-body-md text-body-md text-text-secondary">关于2024年Q1-Q4的核心经营指标设定，涉及3个主要业务部门的资源再分配问题。</p>
+</div>
+</td>
+<td class="px-6 py-5"><span class="text-primary font-bold text-label-md">5</span></td>
+<td class="px-6 py-5 font-body-md text-body-md text-text-secondary">2023-11-20 14:30</td>
+<td class="px-6 py-5"><div class="flex -space-x-2">
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyc-sVbBcl0SVVsFCASKiickR7ZSCTl9wl_gwble0yF_amhTDPXL5x_fypUVOkaV1LUTVARTsw7uf-ZzthRYLzg2z-mvXj7HSVj7gU3B9BVMvmp3-KFa_Np4E9Yo1pdGwiqmuowMtbTZhM5WEoHQBUxxH2w7zmKlnLpLsky15ajLOdEX-Ec1JqxL4DkrEUsW_09KHWSGJEw0q4x4Cm44g0a8nbM1hwCVWd8FiXfE8Zz8LYq3Em8mVeUMNYTV8GWFOGykL8OkcRH6w"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKFCSM2aDhWt9T_sG9Gme0dj0SmFL42XcgBuzUWqgbpESQ2qMAbi-9-SWjiF1QJuurg1l6DYiCSgWZUjGjFv6Aqy_2P3uHJ766kDT3cuu6wXKebryEM7V9WhaYBE7DHtWkOA6HmHbsdCes-EkRyNctRg1KFnAjsrG7BjKdj_BkxJ-VWhmcyoQwNRsCjCuocuT3pjP9JteuwsbL7xFg0EE6hbF2r0HaBmdx_xH--pyyo7pC8oqpL5vPi4X3wyS1dVDClB4-da6oZ7w"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMj5wk3m0kDaZN5pcZ0rffupLlFlfrXvxxYK6zfhJTc2cHDSE3Q8iAvLpmVyWO2YU5RqNjoDm9KzEs7ogkFygyFz7vLoY1QfOAOdo1OubAHyQxtjME8eo1YKE9jldAR-lTtLf2TpbjpnXq3QI_IPBefhCpYfBHBM0TQGvmSz5bMMAOsre_25EqapcsRAT_-l8xaGXc9XC85d0JLRUi4pw7MMiuvlKReTVUtZxXPIqRakSQ8SDX9QlPrMCDc1JfUPOZagmqHj4YQ98"/>
+<div class="w-6 h-6 rounded-full border-2 border-white bg-surface-container-highest flex items-center justify-center text-[10px] font-medium text-text-secondary">+2</div>
+</div></td>
+<td class="px-6 py-5 text-right">
+<button class="text-text-placeholder hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group hover:bg-surface transition-colors cursor-pointer relative">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-placeholder">description</span>
+<span class="font-title-md text-title-md group-hover:text-primary transition-colors">供应链数字化转型第二阶段汇报</span>
+</div>
+</td>
+<td class="px-6 py-5"><span class="text-status-high-risk font-bold text-label-md">12</span></td>
+<td class="px-6 py-5 font-body-md text-body-md text-text-secondary">2023-11-19 10:15</td>
+<td class="px-6 py-5"><div class="flex -space-x-2">
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKFCSM2aDhWt9T_sG9Gme0dj0SmFL42XcgBuzUWqgbpESQ2qMAbi-9-SWjiF1QJuurg1l6DYiCSgWZUjGjFv6Aqy_2P3uHJ766kDT3cuu6wXKebryEM7V9WhaYBE7DHtWkOA6HmHbsdCes-EkRyNctRg1KFnAjsrG7BjKdj_BkxJ-VWhmcyoQwNRsCjCuocuT3pjP9JteuwsbL7xFg0EE6hbF2r0HaBmdx_xH--pyyo7pC8oqpL5vPi4X3wyS1dVDClB4-da6oZ7w"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRUM-78lUmpMW2QJc7wyznPcSuaTzjV6bC8Trl3_rEsWy5xB_FytOWHmmGb_ZE9xDNutTWv-fM7sL4PXhs49SBRvH8fqoPUH9IQV7ccvJbBEYicgvV3emDyQsq3TBgHycP8B80wftCno9KZlk6LOsxLdRq1T4rAC_LCE7lnl19K_uPi3gqJCc-oZSQIeL957wd_M2hAUIcBI7u9OePkPMLof0IVbl8k-U0eGS9Ck_8dqngbKEAdzO0yREtDsR8KiQvPwvuk45zDps"/>
+<div class="w-6 h-6 rounded-full border-2 border-white bg-surface-container-highest flex items-center justify-center text-[10px] font-medium text-text-secondary">+1</div>
+</div></td>
+<td class="px-6 py-5 text-right">
+<button class="text-text-placeholder hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group hover:bg-surface transition-colors cursor-pointer relative">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-placeholder">description</span>
+<span class="font-title-md text-title-md group-hover:text-primary transition-colors">新员工股权激励计划(ESOP)修订</span>
+</div>
+</td>
+<td class="px-6 py-5"><span class="text-status-at-risk font-bold text-label-md">8</span></td>
+<td class="px-6 py-5 font-body-md text-body-md text-text-secondary">2023-11-18 16:45</td>
+<td class="px-6 py-5"><div class="flex -space-x-2">
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDMj5wk3m0kDaZN5pcZ0rffupLlFlfrXvxxYK6zfhJTc2cHDSE3Q8iAvLpmVyWO2YU5RqNjoDm9KzEs7ogkFygyFz7vLoY1QfOAOdo1OubAHyQxtjME8eo1YKE9jldAR-lTtLf2TpbjpnXq3QI_IPBefhCpYfBHBM0TQGvmSz5bMMAOsre_25EqapcsRAT_-l8xaGXc9XC85d0JLRUi4pw7MMiuvlKReTVUtZxXPIqRakSQ8SDX9QlPrMCDc1JfUPOZagmqHj4YQ98"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyc-sVbBcl0SVVsFCASKiickR7ZSCTl9wl_gwble0yF_amhTDPXL5x_fypUVOkaV1LUTVARTsw7uf-ZzthRYLzg2z-mvXj7HSVj7gU3B9BVMvmp3-KFa_Np4E9Yo1pdGwiqmuowMtbTZhM5WEoHQBUxxH2w7zmKlnLpLsky15ajLOdEX-Ec1JqxL4DkrEUsW_09KHWSGJEw0q4x4Cm44g0a8nbM1hwCVWd8FiXfE8Zz8LYq3Em8mVeUMNYTV8GWFOGykL8OkcRH6w"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRUM-78lUmpMW2QJc7wyznPcSuaTzjV6bC8Trl3_rEsWy5xB_FytOWHmmGb_ZE9xDNutTWv-fM7sL4PXhs49SBRvH8fqoPUH9IQV7ccvJbBEYicgvV3emDyQsq3TBgHycP8B80wftCno9KZlk6LOsxLdRq1T4rAC_LCE7lnl19K_uPi3gqJCc-oZSQIeL957wd_M2hAUIcBI7u9OePkPMLof0IVbl8k-U0eGS9Ck_8dqngbKEAdzO0yREtDsR8KiQvPwvuk45zDps"/>
+</div></td>
+<td class="px-6 py-5 text-right">
+<button class="text-text-placeholder hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="group hover:bg-surface transition-colors cursor-pointer relative">
+<td class="px-6 py-5">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-text-placeholder">description</span>
+<span class="font-title-md text-title-md group-hover:text-primary transition-colors">Q4 市场品牌推广方案审核</span>
+</div>
+</td>
+<td class="px-6 py-5"><span class="text-primary font-bold text-label-md">3</span></td>
+<td class="px-6 py-5 font-body-md text-body-md text-text-secondary">2023-11-15 09:00</td>
+<td class="px-6 py-5"><div class="flex -space-x-2">
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBRUM-78lUmpMW2QJc7wyznPcSuaTzjV6bC8Trl3_rEsWy5xB_FytOWHmmGb_ZE9xDNutTWv-fM7sL4PXhs49SBRvH8fqoPUH9IQV7ccvJbBEYicgvV3emDyQsq3TBgHycP8B80wftCno9KZlk6LOsxLdRq1T4rAC_LCE7lnl19K_uPi3gqJCc-oZSQIeL957wd_M2hAUIcBI7u9OePkPMLof0IVbl8k-U0eGS9Ck_8dqngbKEAdzO0yREtDsR8KiQvPwvuk45zDps"/>
+<img alt="member" class="w-6 h-6 rounded-full border-2 border-white bg-surface-container" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDKFCSM2aDhWt9T_sG9Gme0dj0SmFL42XcgBuzUWqgbpESQ2qMAbi-9-SWjiF1QJuurg1l6DYiCSgWZUjGjFv6Aqy_2P3uHJ766kDT3cuu6wXKebryEM7V9WhaYBE7DHtWkOA6HmHbsdCes-EkRyNctRg1KFnAjsrG7BjKdj_BkxJ-VWhmcyoQwNRsCjCuocuT3pjP9JteuwsbL7xFg0EE6hbF2r0HaBmdx_xH--pyyo7pC8oqpL5vPi4X3wyS1dVDClB4-da6oZ7w"/>
+<div class="w-6 h-6 rounded-full border-2 border-white bg-surface-container-highest flex items-center justify-center text-[10px] font-medium text-text-secondary">+4</div>
+</div></td>
+<td class="px-6 py-5 text-right">
+<button class="text-text-placeholder hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer -->
+<div class="px-6 py-4 flex items-center justify-between border-t border-border-base bg-[#F8F9FA]">
+<div class="text-label-md font-label-md text-text-secondary">
+                        显示 1 - 4 条，共 124 条议题
+                    </div>
+<div class="flex items-center gap-2">
+<button class="p-1 border border-border-base rounded bg-white hover:bg-surface disabled:opacity-50">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<span class="px-3 py-1 bg-primary text-white rounded text-label-md font-bold">1</span>
+<button class="px-3 py-1 border border-border-base bg-white hover:bg-surface rounded text-label-md text-text-secondary">2</button>
+<button class="px-3 py-1 border border-border-base bg-white hover:bg-surface rounded text-label-md text-text-secondary">3</button>
+<button class="p-1 border border-border-base rounded bg-white hover:bg-surface">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Dashboard Visual Element -->
+</div>
+</main>
+</body></html>

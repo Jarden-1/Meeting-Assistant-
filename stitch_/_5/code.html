@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>会议报告 - 待办事项</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "text-secondary": "#646A73",
+                        "on-secondary-fixed": "#1a0063",
+                        "inverse-primary": "#b4c5ff",
+                        "primary": "#3370FF",
+                        "primary-fixed": "#dbe1ff",
+                        "status-todo": "#3370FF",
+                        "secondary-fixed": "#e5deff",
+                        "on-secondary-container": "#fffbff",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-low": "#eef4fe",
+                        "surface-container-high": "#e3e8f3",
+                        "outline": "#737687",
+                        "on-error-container": "#93000a",
+                        "on-surface-variant": "#424655",
+                        "status-high-risk": "#F54A45",
+                        "surface-variant": "#dde3ed",
+                        "on-tertiary-container": "#fffbff",
+                        "on-secondary-fixed-variant": "#441cc8",
+                        "surface": "#f8f9ff",
+                        "bg-canvas": "#F5F6F7",
+                        "on-tertiary": "#ffffff",
+                        "border-base": "#DEE0E3",
+                        "on-primary-container": "#fefcff",
+                        "outline-variant": "#c3c6d8",
+                        "on-error": "#ffffff",
+                        "tertiary": "#9e3e00",
+                        "text-primary": "#1F2329",
+                        "surface-dim": "#d5dae5",
+                        "status-unupdated": "#8F959E",
+                        "on-primary": "#ffffff",
+                        "on-tertiary-fixed-variant": "#7b2e00",
+                        "text-placeholder": "#BBBFCC",
+                        "tertiary-fixed": "#ffdbcc",
+                        "secondary-fixed-dim": "#c9bfff",
+                        "error": "#ba1a1a",
+                        "background": "#f8f9ff",
+                        "status-at-risk": "#FF8800",
+                        "secondary": "#5b3cdd",
+                        "surface-container-lowest": "#ffffff",
+                        "on-background": "#161c23",
+                        "on-secondary": "#ffffff",
+                        "surface-container": "#e9eef9",
+                        "surface-container-highest": "#dde3ed",
+                        "surface-bright": "#f8f9ff",
+                        "surface-tint": "#0053db",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "on-surface": "#161c23",
+                        "bg-card": "#FFFFFF",
+                        "secondary-container": "#7459f7",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "tertiary-container": "#c64f00",
+                        "on-primary-fixed": "#00174b",
+                        "primary-container": "#2a6af9",
+                        "inverse-surface": "#2b3139",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "inverse-on-surface": "#ecf1fc",
+                        "error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "sidebar-collapsed": "64px",
+                        "stack-lg": "24px",
+                        "margin-page": "24px",
+                        "gutter": "16px",
+                        "stack-md": "16px",
+                        "container-max": "1440px",
+                        "stack-sm": "8px",
+                        "sidebar-width": "240px",
+                        "stack-xs": "4px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-md-mobile": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }],
+                        "label-sm": ["11px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+                        "headline-md-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+                        "label-md": ["12px", { "lineHeight": "18px", "fontWeight": "500" }],
+                        "title-md": ["16px", { "lineHeight": "24px", "fontWeight": "500" }],
+                        "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        [contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: #BBBFCC;
+            cursor: text;
+        }
+    </style>
+</head>
+<body class="bg-bg-canvas text-text-primary min-h-screen flex flex-col md:flex-row">
+<!-- SideNavBar (Hidden on Mobile, Visible on Desktop) -->
+<nav class="hidden md:flex flex-col w-[80px] h-screen bg-surface-container-lowest border-r border-border-base fixed left-0 top-0 z-40 items-center py-4">
+<div class="flex flex-col items-center mb-8">
+<div class="w-10 h-10 bg-primary rounded-xl flex items-center justify-center text-white mb-2 shadow-sm">
+<span class="material-symbols-outlined text-[24px]">videocam</span>
+</div>
+<h1 class="font-label-sm text-[11px] font-bold text-text-primary text-center">会议助手</h1>
+</div>
+<ul class="flex flex-col gap-2 w-full px-2">
+<li>
+<a class="flex flex-col items-center justify-center w-full h-[60px] rounded-lg text-text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span aria-hidden="true" class="material-symbols-outlined text-[24px] mb-1 group-hover:text-text-primary transition-colors">event_note</span>
+<span class="text-[10px] font-medium group-hover:text-text-primary transition-colors">会议议题</span>
+</a>
+</li>
+<li>
+<a class="flex flex-col items-center justify-center w-full h-[60px] rounded-lg text-primary bg-primary/10 transition-colors" href="#">
+<span aria-hidden="true" class="material-symbols-outlined text-[24px] mb-1" style="font-variation-settings: 'FILL' 1;">checklist</span>
+<span class="text-[10px] font-bold">我的待办</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto w-full px-2">
+<a class="flex flex-col items-center justify-center w-full h-[60px] rounded-lg text-text-secondary hover:bg-surface-container transition-colors group" href="#">
+<span aria-hidden="true" class="material-symbols-outlined text-[24px] mb-1 group-hover:text-text-primary transition-colors">settings</span>
+<span class="text-[10px] font-medium group-hover:text-text-primary transition-colors">设置</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-[80px] flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest border-b border-border-base h-16 flex items-center justify-between px-margin-page sticky top-0 z-30">
+<div class="flex items-center gap-6">
+<span class="font-headline-md text-headline-md font-bold text-primary hidden md:block">工作区</span>
+<nav class="hidden md:flex items-center h-full">
+<a class="h-16 flex items-center px-4 font-label-md text-label-md text-text-secondary hover:text-primary transition-all" href="#">会议综述</a>
+<a class="h-16 flex items-center px-4 font-label-md text-label-md text-text-secondary hover:text-primary transition-all" href="#">会议详情(全量记录)</a>
+<a class="h-16 flex items-center px-4 font-label-md text-label-md text-primary font-bold border-b-2 border-primary opacity-80 scale-95 duration-150" href="#">待办事项</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden sm:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder text-sm">search</span>
+<input class="pl-9 pr-4 py-1.5 w-64 bg-white border border-border-base rounded text-body-md font-body-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10 transition-all" placeholder="搜索..." type="text"/>
+</div>
+<button class="px-4 py-2 bg-white border border-border-base text-text-primary rounded font-label-md text-label-md hover:bg-bg-canvas transition-colors">结束会议</button>
+<button class="px-4 py-2 bg-[#3370FF] text-white rounded font-label-md text-label-md hover:bg-primary transition-colors">开始会议</button>
+</div>
+</header>
+<!-- Page Content -->
+<div class="flex-1 p-margin-page overflow-auto">
+<div class="max-w-container-max mx-auto">
+<div class="mb-stack-lg flex justify-between items-end">
+<div>
+<h2 class="font-headline-md text-headline-md text-text-primary mb-2">Q3 产品战略对齐 - 待办事项</h2>
+<p class="font-body-md text-body-md text-text-secondary">提取自会议记录 (2023年10月24日)</p>
+</div>
+<div class="flex gap-2">
+<button class="px-3 py-1.5 bg-white border border-border-base text-text-primary rounded flex items-center gap-2 font-label-md text-label-md hover:bg-bg-canvas transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span> 筛选
+                        </button>
+<button class="px-3 py-1.5 bg-white border border-border-base text-text-primary rounded flex items-center gap-2 font-label-md text-label-md hover:bg-bg-canvas transition-colors">
+<span class="material-symbols-outlined text-[18px]">download</span> 导出
+                        </button>
+</div>
+</div>
+<!-- Todo List Card -->
+<div class="bg-bg-card rounded-lg border border-border-base overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#F8F9FA] border-b border-border-base">
+<th class="py-3 px-6 font-label-md text-label-md text-text-secondary font-medium w-12 text-center">状态</th>
+<th class="py-3 px-6 font-label-md text-label-md text-text-secondary font-medium w-[40%]">任务描述</th>
+<th class="py-3 px-6 font-label-md text-label-md text-text-secondary font-medium">优先级</th>
+<th class="py-3 px-6 font-label-md text-label-md text-text-secondary font-medium">负责人</th>
+<th class="py-3 px-6 font-label-md text-label-md text-text-secondary font-medium">截止日期</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b border-border-base hover:bg-bg-canvas transition-colors">
+<td class="py-4 px-6 text-center">
+<input class="w-4 h-4 rounded border-border-base text-primary focus:ring-primary/20" type="checkbox"/>
+</td>
+<td class="py-4 px-6 text-text-primary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-2 -mx-2 py-1 transition-all" contenteditable="true">完成Q4市场预算分配并提交审核。</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#FFF0F0] text-[#F54A45] outline-none focus:ring-1 focus:ring-primary/30 transition-all cursor-text" contenteditable="true">高风险</span>
+</td>
+<td class="py-4 px-6">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-dim overflow-hidden relative shrink-0">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a young woman with a neutral expression, suitable for a corporate avatar in a modern enterprise software application. She has dark hair and is wearing a simple, elegant blouse against a clean, light gray background, matching a high-trust, structured calm aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_K69NMai7K3Q1q8T8A995681wCBGKNio_n0602r_fQyspKZ1i927NrHiIqATO9NGdSUkurJXVSJ6vqn53l4lLM2SM-TMBoP06hdblrOSuzsWPjjl_NCBEgEN_Pd_HH6IWWnvmmwItNBNGULLwGWkYd7l4AfOjCNuov7TIVOFC1QgvCoxmKl197OHDiV3ZFp33Mz5jqna4THjDViQ6Mph4qF_trG1PfpPgrFwACRB3jWUHwjzZOzl4SzOeMQf1KDI9Cxt-ZZIQbDM"/>
+</div>
+<span class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">Sarah Jenkins</span>
+</div>
+</td>
+<td class="py-4 px-6 text-text-secondary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">2023-10-26</div>
+</td>
+</tr>
+<tr class="border-b border-border-base hover:bg-bg-canvas transition-colors">
+<td class="py-4 px-6 text-center">
+<input class="w-4 h-4 rounded border-border-base text-primary focus:ring-primary/20" type="checkbox"/>
+</td>
+<td class="py-4 px-6 text-text-primary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-2 -mx-2 py-1 transition-all" contenteditable="true">起草新API集成的技术规范。</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#FFF5EB] text-[#FF8800] outline-none focus:ring-1 focus:ring-primary/30 transition-all cursor-text" contenteditable="true">有风险</span>
+</td>
+<td class="py-4 px-6">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-dim flex items-center justify-center text-[10px] font-bold text-white bg-primary shrink-0">
+                                            MK
+                                        </div>
+<span class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">Michael Klein</span>
+</div>
+</td>
+<td class="py-4 px-6 text-text-secondary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">2023-10-28</div>
+</td>
+</tr>
+<tr class="border-b border-border-base hover:bg-bg-canvas transition-colors">
+<td class="py-4 px-6 text-center">
+<input class="w-4 h-4 rounded border-border-base text-primary focus:ring-primary/20" type="checkbox"/>
+</td>
+<td class="py-4 px-6 text-text-primary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-2 -mx-2 py-1 transition-all" contenteditable="true">安排与设计团队同步，审查原型V2。</div>
+</td>
+<td class="py-4 px-6">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#E8F0FF] text-[#3370FF] outline-none focus:ring-1 focus:ring-primary/30 transition-all cursor-text" contenteditable="true">待处理</span>
+</td>
+<td class="py-4 px-6">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-dim overflow-hidden relative shrink-0">
+<img alt="Avatar" class="w-full h-full object-cover" data-alt="A professional headshot of a man with short hair and glasses, looking directly at the camera with a subtle smile. He is wearing a dark, tailored shirt against a minimalist white background. The lighting is soft and even, perfect for an enterprise application user avatar conveying structured calm." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAT4zgiEA6T_doDOYXZNzdTzTmVgKwnitEon4n1c2p3-GMbQ3FZ_OMzFylJ8X3sV0iXCr_3LX7BDSBj2ueif-5ZvZqcvSkiwH-N9YBvsn57Miv85KQf6XLjwh8TxTNlH99m2F4J0-Xht7w-dFjbS9Hah__8E2KoZDSaIrnzTJMG7f-fO7h3A6lsaVNyTb06_iabmP1blw-up4hoQklQydUDAWqNQN_WFt5kWZmy4RnQhpSF9QN0UEzH8kPpx9ov1QHt_V920XAV_Sk"/>
+</div>
+<span class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">David Chen</span>
+</div>
+</td>
+<td class="py-4 px-6 text-text-secondary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">2023-10-25</div>
+</td>
+</tr>
+<tr class="border-b border-border-base hover:bg-bg-canvas transition-colors">
+<td class="py-4 px-6 text-center opacity-60">
+<input checked="" class="w-4 h-4 rounded border-border-base text-primary focus:ring-primary/20 bg-primary" type="checkbox"/>
+</td>
+<td class="py-4 px-6 text-text-secondary">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-2 -mx-2 py-1 transition-all line-through opacity-60" contenteditable="true">使用最新指标更新客户演示文稿。</div>
+</td>
+<td class="py-4 px-6 opacity-60">
+<span class="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-[#F2F3F5] text-[#8F959E] outline-none focus:ring-1 focus:ring-primary/30 transition-all cursor-text" contenteditable="true">已完成</span>
+</td>
+<td class="py-4 px-6 opacity-60">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-dim flex items-center justify-center text-[10px] font-bold text-white bg-tertiary shrink-0">
+                                            AL
+                                        </div>
+<span class="text-text-secondary outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">Anna Lee</span>
+</div>
+</td>
+<td class="py-4 px-6 text-text-secondary opacity-60">
+<div class="outline-none focus:bg-white focus:ring-1 focus:ring-primary/30 rounded px-1 -mx-1 transition-all" contenteditable="true">2023-10-24</div>
+</td>
+</tr>
+<tr class="hover:bg-bg-canvas transition-colors cursor-pointer group">
+<td class="py-4 px-6 text-center">
+<span class="material-symbols-outlined text-text-placeholder group-hover:text-primary transition-colors text-[20px]">add</span>
+</td>
+<td class="py-4 px-6 text-primary font-medium" colspan="4">
+                    新增待办
+                </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

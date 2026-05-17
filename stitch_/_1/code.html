@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#dde3ed",
+                        "status-todo": "#3370FF",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-secondary-fixed": "#1a0063",
+                        "on-primary-fixed": "#00174b",
+                        "surface-tint": "#0053db",
+                        "bg-card": "#FFFFFF",
+                        "surface-container-high": "#e3e8f3",
+                        "border-base": "#DEE0E3",
+                        "text-primary": "#1F2329",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-low": "#eef4fe",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-primary": "#b4c5ff",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#2a6af9",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "surface-variant": "#dde3ed",
+                        "on-secondary-fixed-variant": "#441cc8",
+                        "secondary-fixed-dim": "#c9bfff",
+                        "tertiary-container": "#c64f00",
+                        "text-secondary": "#646A73",
+                        "surface-dim": "#d5dae5",
+                        "secondary-fixed": "#e5deff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "status-at-risk": "#FF8800",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#737687",
+                        "background": "#f8f9ff",
+                        "outline-variant": "#c3c6d8",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-secondary-container": "#fffbff",
+                        "secondary": "#5b3cdd",
+                        "surface-container": "#e9eef9",
+                        "on-background": "#161c23",
+                        "on-primary-container": "#fefcff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#7459f7",
+                        "on-secondary": "#ffffff",
+                        "text-placeholder": "#BBBFCC",
+                        "on-surface": "#161c23",
+                        "on-surface-variant": "#424655",
+                        "inverse-on-surface": "#ecf1fc",
+                        "tertiary": "#9e3e00",
+                        "on-tertiary-container": "#fffbff",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-fixed-variant": "#7b2e00",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2b3139",
+                        "bg-canvas": "#F5F6F7",
+                        "status-unupdated": "#8F959E",
+                        "primary": "#0050d6",
+                        "status-high-risk": "#F54A45"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem",
+                        "2xl": "1rem",
+                        "3xl": "1.5rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "sidebar-width": "240px",
+                        "stack-xs": "4px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "gutter": "16px",
+                        "margin-page": "24px",
+                        "stack-sm": "8px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-md-mobile": ["Hanken Grotesk"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        body {
+            font-family: 'Hanken Grotesk', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="m-0 p-0 overflow-hidden flex items-center justify-center min-h-screen bg-gray-100">
+<!-- Login Card Container -->
+<main class="flex w-full max-w-[1000px] h-[640px] bg-white rounded-3xl shadow-2xl overflow-hidden mx-4">
+<!-- Left Side: Brand & Features -->
+<section class="hidden md:flex w-1/2 bg-gradient-to-br from-[#5a76ff] to-[#8d5aff] p-12 flex-col text-white relative">
+<!-- Top Logo -->
+<div class="flex items-center gap-4 mb-16">
+<div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+<span class="material-symbols-outlined text-white text-[24px]">chat_bubble_outline</span>
+</div>
+<span class="font-headline-md text-[20px] font-semibold tracking-wide">会议助手</span>
+</div>
+<!-- Hero Text -->
+<div class="mb-16">
+<h1 class="text-[40px] leading-[1.2] font-bold mb-4">
+                让每次会议<br/>都有迹可循
+            </h1>
+<p class="text-white/80 text-[16px] leading-relaxed">
+                会前带入历史上下文，会中捕捉讨论链路，<br/>会后确认跟进事项。
+            </p>
+</div>
+<!-- Feature List -->
+<div class="space-y-6 mt-auto mb-8">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-white/90 mt-1">check_circle</span>
+<div>
+<h3 class="font-bold text-[16px] mb-1">会前准备</h3>
+<p class="text-white/70 text-[14px]">自动带入历史决策与待办</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-white/90 mt-1">check_circle</span>
+<div>
+<h3 class="font-bold text-[16px] mb-1">会中记录</h3>
+<p class="text-white/70 text-[14px]">AI 辅助捕捉讨论链路</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-white/90 mt-1">check_circle</span>
+<div>
+<h3 class="font-bold text-[16px] mb-1">会后跟进</h3>
+<p class="text-white/70 text-[14px]">确认草稿，写入正式记录</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Right Side: Login Form -->
+<section class="w-full md:w-1/2 bg-white p-12 flex flex-col justify-center relative">
+<div class="max-w-[360px] w-full mx-auto">
+<!-- Mobile Logo (Hidden on desktop) -->
+<div class="md:hidden flex items-center gap-3 mb-10">
+<div class="w-10 h-10 bg-[#5a76ff] rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[20px]">chat_bubble_outline</span>
+</div>
+<span class="font-headline-md text-[18px] font-semibold text-text-primary">会议助手</span>
+</div>
+<!-- Form Header -->
+<div class="mb-10">
+<h2 class="text-[32px] font-bold text-text-primary mb-3">进入工作台</h2>
+<p class="text-text-secondary text-[15px]">演示模式 · 输入任意名字即可体验</p>
+</div>
+<!-- Form -->
+<form class="space-y-6">
+<div class="space-y-2">
+<label class="block text-text-primary text-[15px] font-medium" for="username">你的名字</label>
+<input class="block w-full px-4 py-3.5 bg-white border border-border-base rounded-xl text-text-primary placeholder-text-placeholder focus:ring-2 focus:ring-[#5a76ff]/20 focus:border-[#5a76ff] transition-all outline-none text-[15px]" id="username" name="username" placeholder="例如：张三" type="text"/>
+</div>
+<button class="w-full py-3.5 bg-[#5a76ff] text-white rounded-xl hover:bg-[#4d66e8] active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2 font-medium text-[16px]" type="submit">
+<span>进入工作台</span>
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</form>
+</div>
+<!-- Footer Disclaimer -->
+<div class="absolute bottom-12 left-0 right-0 text-center px-12">
+<p class="text-[13px] text-text-placeholder">
+                原型演示版本，数据仅存于本地浏览器，刷新后重置。
+            </p>
+</div>
+</section>
+</main>
+</body></html>

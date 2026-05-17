@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>会议报告 - AI 综述</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "secondary-fixed": "#e5deff",
+                "primary-container": "#2a6af9",
+                "status-unupdated": "#8F959E",
+                "surface": "#f8f9ff",
+                "primary-fixed": "#dbe1ff",
+                "outline": "#737687",
+                "surface-container": "#e9eef9",
+                "surface-tint": "#0053db",
+                "surface-dim": "#d5dae5",
+                "on-tertiary-fixed-variant": "#7b2e00",
+                "tertiary": "#9e3e00",
+                "primary": "#0050d6",
+                "secondary-container": "#7459f7",
+                "on-primary-fixed": "#00174b",
+                "surface-bright": "#f8f9ff",
+                "status-high-risk": "#F54A45",
+                "on-tertiary-fixed": "#351000",
+                "surface-container-highest": "#dde3ed",
+                "error": "#ba1a1a",
+                "border-base": "#DEE0E3",
+                "surface-variant": "#dde3ed",
+                "on-secondary-fixed-variant": "#441cc8",
+                "secondary": "#5b3cdd",
+                "on-primary-fixed-variant": "#003ea8",
+                "on-secondary": "#ffffff",
+                "inverse-surface": "#2b3139",
+                "on-tertiary": "#ffffff",
+                "secondary-fixed-dim": "#c9bfff",
+                "bg-card": "#FFFFFF",
+                "outline-variant": "#c3c6d8",
+                "surface-container-high": "#e3e8f3",
+                "inverse-primary": "#b4c5ff",
+                "error-container": "#ffdad6",
+                "primary-fixed-dim": "#b4c5ff",
+                "on-error-container": "#93000a",
+                "bg-canvas": "#F5F6F7",
+                "on-tertiary-container": "#fffbff",
+                "background": "#f8f9ff",
+                "inverse-on-surface": "#ecf1fc",
+                "on-primary": "#ffffff",
+                "text-primary": "#1F2329",
+                "tertiary-container": "#c64f00",
+                "on-surface-variant": "#424655",
+                "surface-container-lowest": "#ffffff",
+                "status-at-risk": "#FF8800",
+                "on-error": "#ffffff",
+                "on-surface": "#161c23",
+                "tertiary-fixed": "#ffdbcc",
+                "surface-container-low": "#eef4fe",
+                "status-todo": "#3370FF",
+                "on-secondary-container": "#fffbff",
+                "on-secondary-fixed": "#1a0063",
+                "on-background": "#161c23",
+                "text-secondary": "#646A73",
+                "text-placeholder": "#BBBFCC",
+                "tertiary-fixed-dim": "#ffb695",
+                "on-primary-container": "#fefcff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "stack-lg": "24px",
+                "stack-xs": "4px",
+                "margin-page": "24px",
+                "gutter": "16px",
+                "container-max": "1440px",
+                "sidebar-width": "240px",
+                "sidebar-collapsed": "64px",
+                "stack-md": "16px",
+                "stack-sm": "8px"
+        },
+        "fontFamily": {
+                "headline-sm": [
+                        "Hanken Grotesk"
+                ],
+                "display-lg": [
+                        "Hanken Grotesk"
+                ],
+                "headline-md-mobile": [
+                        "Hanken Grotesk"
+                ],
+                "title-md": [
+                        "Hanken Grotesk"
+                ],
+                "label-md": [
+                        "Hanken Grotesk"
+                ],
+                "headline-md": [
+                        "Hanken Grotesk"
+                ],
+                "body-md": [
+                        "Hanken Grotesk"
+                ],
+                "body-lg": [
+                        "Hanken Grotesk"
+                ],
+                "label-sm": [
+                        "Hanken Grotesk"
+                ]
+        },
+        "fontSize": {
+                "headline-sm": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "display-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.02em",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-md-mobile": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "title-md": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "500"
+                        }
+                ],
+                "label-md": [
+                        "12px",
+                        {
+                                "lineHeight": "18px",
+                                "fontWeight": "500"
+                        }
+                ],
+                "headline-md": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "body-md": [
+                        "14px",
+                        {
+                                "lineHeight": "22px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "body-lg": [
+                        "16px",
+                        {
+                                "lineHeight": "24px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "label-sm": [
+                        "11px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.02em",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+</head>
+<body class="bg-bg-canvas text-text-primary font-body-md antialiased min-h-screen flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest border-r border-border-base w-sidebar-collapsed h-screen fixed left-0 top-0 flex flex-col z-40 hidden md:flex items-center">
+<div class="h-16 w-full flex items-center justify-center border-b border-border-base">
+<div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary font-bold text-lg">会</div>
+</div>
+<div class="flex-1 py-4 flex flex-col gap-2 w-full items-center">
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-primary bg-surface-container-low hover:bg-surface-container transition-colors" href="#" title="会议议题">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">event_note</span>
+</a>
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-text-secondary hover:bg-surface-container transition-colors" href="#" title="我的待办">
+<span class="material-symbols-outlined">checklist</span>
+</a>
+<a class="flex items-center justify-center w-10 h-10 rounded-lg text-text-secondary hover:bg-surface-container transition-colors" href="#" title="设置">
+<span class="material-symbols-outlined">settings</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col ml-0 md:ml-sidebar-collapsed min-h-screen">
+<!-- TopAppBar -->
+<header class="bg-surface-container-lowest border-b border-border-base h-16 px-margin-page sticky top-0 z-30 flex items-center justify-between">
+<div class="flex items-center gap-6 h-full">
+<span class="font-headline-sm text-headline-sm font-bold text-primary mr-4 md:hidden">会议助手</span>
+<nav class="flex h-full items-center gap-6">
+<a class="h-full flex items-center text-primary font-bold border-b-2 border-primary font-label-md text-label-md hover:text-primary transition-all opacity-80 scale-95 duration-150" href="#">会议综述</a>
+<a class="h-full flex items-center text-text-secondary font-label-md text-label-md hover:text-primary transition-all" href="#">会议详情(全量记录)</a>
+<a class="h-full flex items-center text-text-secondary font-label-md text-label-md hover:text-primary transition-all" href="#">待办事项</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-4 py-2 rounded-DEFAULT border border-border-base text-text-primary bg-bg-card font-label-md text-label-md hover:bg-bg-canvas transition-colors">结束会议</button>
+<button class="px-4 py-2 rounded-DEFAULT bg-primary text-on-primary font-label-md text-label-md hover:opacity-90 transition-opacity">开始会议</button>
+</div>
+</header>
+<!-- Page Content -->
+<main class="flex-1 p-margin-page overflow-auto">
+<div class="max-w-container-max mx-auto space-y-stack-lg">
+<!-- Header Section -->
+<div>
+<h1 class="font-headline-md text-headline-md md:font-display-lg md:text-display-lg text-text-primary mb-2 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">Q3 产品战略规划与季度目标对齐会议</h1>
+<div class="flex items-center gap-4 text-text-secondary font-body-md text-body-md">
+<span class="flex items-center gap-1 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true"><span class="material-symbols-outlined text-[18px]">calendar_today</span> 2023-09-25 14:00 - 16:00</span>
+<span class="flex items-center gap-1 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true"><span class="material-symbols-outlined text-[18px]">group</span> 参与人: 张三, 李四, 王五, 赵六 (共8人)</span>
+</div>
+</div>
+<!-- Core Strategy Summary (Bento/Hero Card) -->
+<div class="bg-bg-card border border-border-base rounded-xl p-6 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary-fixed-dim opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+<div class="relative z-10">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">psychology</span>
+<h2 class="font-title-md text-title-md text-text-primary font-bold hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">AI 核心策略总结</h2>
+</div>
+<button class="text-text-secondary hover:text-primary flex items-center gap-1 font-label-sm transition-colors">
+<span class="material-symbols-outlined text-[16px]">edit</span> 编辑
+                            </button>
+</div>
+<p class="font-headline-sm text-headline-sm text-text-primary leading-relaxed italic mb-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">
+                            “在Q3，我们必须将重点从单纯的功能堆砌转移到用户体验的深度打磨上。产品功能优化是基础，但商业模式的创新和精准的市场推广才是我们突破增长瓶颈的关键。一切执行必须以数据驱动，确保每个核心项目的进度可控、风险透明。”
+                        </p>
+<div class="flex gap-3">
+<span class="px-3 py-1 rounded bg-surface-container text-text-primary font-label-sm text-label-sm hover:bg-surface-container-high focus:outline-none cursor-text transition-colors" contenteditable="true">用户体验升级</span>
+<span class="px-3 py-1 rounded bg-surface-container text-text-primary font-label-sm text-label-sm hover:bg-surface-container-high focus:outline-none cursor-text transition-colors" contenteditable="true">商业化提速</span>
+<span class="px-3 py-1 rounded bg-surface-container text-text-primary font-label-sm text-label-sm hover:bg-surface-container-high focus:outline-none cursor-text transition-colors" contenteditable="true">数据驱动决策</span>
+</div>
+</div>
+</div>
+<!-- Key Projects Cards -->
+<div>
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-title-md text-title-md font-bold">重点项目解读</h3>
+<button class="text-text-secondary hover:text-primary flex items-center gap-1 font-label-sm transition-colors">
+<span class="material-symbols-outlined text-[16px]">edit</span> 编辑
+                        </button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-gutter">
+<!-- Card 1 -->
+<div class="bg-bg-card border border-border-base rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(31,35,41,0.06)] transition-shadow group relative">
+<div class="flex items-center justify-between mb-4">
+<div class="w-10 h-10 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">dashboard_customize</span>
+</div>
+<span class="px-2 py-1 rounded bg-[#E8F0FF] text-[#3370FF] font-label-sm text-label-sm">有待办</span>
+</div>
+<h4 class="font-title-md text-title-md font-bold mb-2 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">产品功能优化</h4>
+<p class="text-text-secondary font-body-md text-body-md mb-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">
+                                针对核心工作流进行深度重构，减少用户操作层级。优先解决Q2遗留的3个高优体验缺陷，并上线全新的AI辅助写作功能，提升用户内容产出效率。
+                            </p>
+<div class="pt-4 border-t border-border-base flex items-center justify-between">
+<span class="text-text-secondary font-label-sm text-label-sm hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">负责人: 张三</span>
+<span class="text-text-primary font-label-sm text-label-sm font-bold hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">优先级: 高</span>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="bg-bg-card border border-border-base rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(31,35,41,0.06)] transition-shadow group relative">
+<div class="flex items-center justify-between mb-4">
+<div class="w-10 h-10 rounded-lg bg-[#FFF5EB] flex items-center justify-center text-[#FF8800]">
+<span class="material-symbols-outlined">monetization_on</span>
+</div>
+<span class="px-2 py-1 rounded bg-[#FFF5EB] text-[#FF8800] font-label-sm text-label-sm">有风险</span>
+</div>
+<h4 class="font-title-md text-title-md font-bold mb-2 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">商业模式设计</h4>
+<p class="text-text-secondary font-body-md text-body-md mb-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">
+                                探索基于用量计费的新型订阅模式，并设计针对企业客户的增值服务包。目前需要解决与现有按座席收费模式的冲突，并完成财务合规性审查。
+                            </p>
+<div class="pt-4 border-t border-border-base flex items-center justify-between">
+<span class="text-text-secondary font-label-sm text-label-sm hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">负责人: 李四</span>
+<span class="text-text-primary font-label-sm text-label-sm font-bold hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">优先级: 极高</span>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-bg-card border border-border-base rounded-lg p-6 hover:shadow-[0_4px_12px_rgba(31,35,41,0.06)] transition-shadow group relative">
+<div class="flex items-center justify-between mb-4">
+<div class="w-10 h-10 rounded-lg bg-[#F2F3F5] flex items-center justify-center text-[#8F959E]">
+<span class="material-symbols-outlined">campaign</span>
+</div>
+<span class="px-2 py-1 rounded bg-[#F2F3F5] text-[#8F959E] font-label-sm text-label-sm">未更新</span>
+</div>
+<h4 class="font-title-md text-title-md font-bold mb-2 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">市场推广策略</h4>
+<p class="text-text-secondary font-body-md text-body-md mb-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">
+                                筹备Q3末的行业峰会赞助事宜，并策划一轮线上的“产品体验官”招募活动。由于预算审批流程延迟，目前部分宣发物料的制作进度滞后。
+                            </p>
+<div class="pt-4 border-t border-border-base flex items-center justify-between">
+<span class="text-text-secondary font-label-sm text-label-sm hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">负责人: 王五</span>
+<span class="text-text-primary font-label-sm text-label-sm font-bold hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none rounded px-2 -mx-2 cursor-text transition-colors" contenteditable="true">优先级: 中</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Table Section -->
+<div>
+<div class="flex items-center justify-between mb-4">
+<h3 class="font-title-md text-title-md font-bold">项目跟进进度表</h3>
+<button class="text-text-secondary hover:text-primary flex items-center gap-1 font-label-sm transition-colors">
+<span class="material-symbols-outlined text-[16px]">edit</span> 编辑
+                        </button>
+</div>
+<div class="bg-bg-card border border-border-base rounded-lg overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-[#F8F9FA] border-b border-border-base">
+<th class="py-3 px-4 font-label-md text-label-md text-text-secondary font-semibold">项目名称</th>
+<th class="py-3 px-4 font-label-md text-label-md text-text-secondary font-semibold">关键里程碑</th>
+<th class="py-3 px-4 font-label-md text-label-md text-text-secondary font-semibold">截止日期</th>
+<th class="py-3 px-4 font-label-md text-label-md text-text-secondary font-semibold">负责人</th>
+<th class="py-3 px-4 font-label-md text-label-md text-text-secondary font-semibold">当前状态</th>
+</tr>
+</thead>
+<tbody class="font-body-md text-body-md">
+<tr class="border-b border-border-base hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">AI 辅助写作功能上线</td>
+<td class="py-3 px-4 text-text-secondary hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">完成内部 Beta 测试并修复 P0 Bug</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">2023-10-15</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">张三</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-[#E8F0FF] text-[#3370FF] font-label-sm text-label-sm inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">radio_button_unchecked</span> 待办
+                                        </span>
+</td>
+</tr>
+<tr class="border-b border-border-base hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">新商业模式财务合规审批</td>
+<td class="py-3 px-4 text-text-secondary hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">提交完整方案至法务及财务部审核</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">2023-10-05</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">李四</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-[#FFF0F0] text-[#F54A45] font-label-sm text-label-sm inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">warning</span> 高风险
+                                        </span>
+</td>
+</tr>
+<tr class="border-b border-border-base hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">行业峰会物料制作</td>
+<td class="py-3 px-4 text-text-secondary hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">完成展台设计定稿及印刷物发包</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">2023-10-20</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">王五</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-[#F2F3F5] text-[#8F959E] font-label-sm text-label-sm inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">pending</span> 长期未更新
+                                        </span>
+</td>
+</tr>
+<tr class="hover:bg-surface-container-low/50 transition-colors">
+<td class="py-3 px-4 font-medium hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">用户体验反馈收集收集</td>
+<td class="py-3 px-4 text-text-secondary hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">发放问卷并回收 1000 份有效样本</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">2023-09-30</td>
+<td class="py-3 px-4 hover:bg-surface-container-low focus:bg-surface-container-low focus:outline-none cursor-text transition-colors" contenteditable="true">赵六</td>
+<td class="py-3 px-4">
+<span class="px-2 py-1 rounded bg-[#FFF5EB] text-[#FF8800] font-label-sm text-label-sm inline-flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">error_outline</span> 延期风险
+                                        </span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

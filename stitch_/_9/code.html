@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-container-highest": "#dde3ed",
+                        "status-todo": "#3370FF",
+                        "tertiary-fixed": "#ffdbcc",
+                        "on-secondary-fixed": "#1a0063",
+                        "on-primary-fixed": "#00174b",
+                        "surface-tint": "#0053db",
+                        "bg-card": "#FFFFFF",
+                        "surface-container-high": "#e3e8f3",
+                        "border-base": "#DEE0E3",
+                        "text-primary": "#1F2329",
+                        "on-tertiary-fixed": "#351000",
+                        "surface-container-low": "#eef4fe",
+                        "on-error-container": "#93000a",
+                        "surface": "#f8f9ff",
+                        "surface-bright": "#f8f9ff",
+                        "inverse-primary": "#b4c5ff",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#2a6af9",
+                        "primary-fixed-dim": "#b4c5ff",
+                        "surface-variant": "#dde3ed",
+                        "on-secondary-fixed-variant": "#441cc8",
+                        "secondary-fixed-dim": "#c9bfff",
+                        "tertiary-container": "#c64f00",
+                        "text-secondary": "#646A73",
+                        "surface-dim": "#d5dae5",
+                        "secondary-fixed": "#e5deff",
+                        "tertiary-fixed-dim": "#ffb695",
+                        "status-at-risk": "#FF8800",
+                        "on-tertiary": "#ffffff",
+                        "outline": "#737687",
+                        "background": "#f8f9ff",
+                        "outline-variant": "#c3c6d8",
+                        "on-primary-fixed-variant": "#003ea8",
+                        "on-secondary-container": "#fffbff",
+                        "secondary": "#5b3cdd",
+                        "surface-container": "#e9eef9",
+                        "on-background": "#161c23",
+                        "on-primary-container": "#fefcff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-error": "#ffffff",
+                        "secondary-container": "#7459f7",
+                        "on-secondary": "#ffffff",
+                        "text-placeholder": "#BBBFCC",
+                        "on-surface": "#161c23",
+                        "on-surface-variant": "#424655",
+                        "inverse-on-surface": "#ecf1fc",
+                        "tertiary": "#9e3e00",
+                        "on-tertiary-container": "#fffbff",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#dbe1ff",
+                        "on-tertiary-fixed-variant": "#7b2e00",
+                        "error-container": "#ffdad6",
+                        "inverse-surface": "#2b3139",
+                        "bg-canvas": "#F5F6F7",
+                        "status-unupdated": "#8F959E",
+                        "primary": "#3370FF",
+                        "status-high-risk": "#F54A45"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "sidebar-width": "240px",
+                        "stack-xs": "4px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "gutter": "16px",
+                        "margin-page": "24px",
+                        "stack-sm": "8px",
+                        "sidebar-collapsed": "64px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Hanken Grotesk"],
+                        "headline-md": ["Hanken Grotesk"],
+                        "display-lg": ["Hanken Grotesk"],
+                        "headline-sm": ["Hanken Grotesk"],
+                        "title-md": ["Hanken Grotesk"],
+                        "label-md": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "label-sm": ["Hanken Grotesk"],
+                        "headline-md-mobile": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "title-md": ["16px", {"lineHeight": "24px", "fontWeight": "500"}],
+                        "label-md": ["12px", {"lineHeight": "18px", "fontWeight": "500"}],
+                        "body-md": ["14px", {"lineHeight": "22px", "fontWeight": "400"}],
+                        "label-sm": ["11px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "500"}],
+                        "headline-md-mobile": ["20px", {"lineHeight": "28px", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Hanken Grotesk', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .quadrant-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 1px;
+            background-color: #DEE0E3;
+        }
+    </style>
+</head>
+<body class="bg-bg-canvas text-text-primary">
+<!-- Sidebar Navigation -->
+<aside class="fixed h-screen left-0 w-sidebar-width bg-surface border-r border-border-base flex flex-col py-stack-lg z-20">
+<div class="px-6 mb-8">
+<div class="font-headline-sm text-headline-sm font-bold text-primary">会议助手</div>
+<div class="font-label-md text-label-md text-text-secondary mt-1">企业协作系统</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center px-6 py-3 text-text-secondary font-medium hover:bg-surface-container-high hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3">assignment</span>
+<span class="font-label-md text-label-md">会议议题</span>
+</a>
+<a class="flex items-center px-6 py-3 text-primary font-bold border-r-2 border-primary bg-surface-container-low translate-x-1 transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3">check_circle</span>
+<span class="font-label-md text-label-md">我的待办</span>
+</a>
+<a class="flex items-center px-6 py-3 text-text-secondary font-medium hover:bg-surface-container-high hover:text-text-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined mr-3">settings</span>
+<span class="font-label-md text-label-md">设置</span>
+</a>
+</nav>
+<div class="px-6 pt-6 border-t border-border-base">
+<div class="flex items-center gap-3">
+<img alt="用户头像" class="w-10 h-10 rounded-full border border-border-base" data-alt="A professional headshot of a corporate executive with a friendly expression, set against a clean, soft-focus office background. The lighting is bright and even, reflecting a high-end light mode UI aesthetic. The color palette is dominated by neutral tones and soft blues, matching a modern enterprise software environment." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPpS5zhc1h-xnQO5JEXwsBOmN4tzrmLP9rz49jHG6F1v11VRTu0_9MbHEAQQdjLVs4oOPmLCzo5CaBnls29T2OT16PZGUI68yuhgQdE_yp13R5xj7GDaYwKlSMYePrptPTB5yr9jUFqgNKIyh0M3fptFzlwvgVB2anvEZMd9K5GI1BcoCTyQsCtwu0Ry_DDKQGwUQ1xPBKQFyOHJzXRjtGi5gqoPntgiRxgzSWrPgIrKoeMd5teF4QFkRfoM5-J7OuDEBPvnXwFAw"/>
+<div>
+<div class="font-label-md text-label-md font-bold">李经理</div>
+<div class="font-label-sm text-label-sm text-text-secondary">高级项目管理</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Shell -->
+<div class="ml-sidebar-width min-h-screen flex flex-col">
+<!-- Top App Bar -->
+<header class="h-16 px-margin-page w-full flex justify-between items-center bg-bg-card border-b border-border-base sticky top-0 z-10">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-96">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-border-base rounded-xl text-body-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/10" placeholder="搜索待办事项..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 hover:bg-surface-container-low rounded-xl transition-colors text-text-secondary relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-status-high-risk rounded-full"></span>
+</button>
+<button class="p-2 hover:bg-surface-container-low rounded-xl transition-colors text-text-secondary">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+<div class="h-6 w-px bg-border-base mx-2"></div>
+<button class="bg-primary text-on-primary px-4 py-2 rounded-xl font-label-md text-label-md flex items-center gap-2 shadow-sm hover:opacity-90 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                    新建任务
+                </button>
+</div>
+</header>
+<!-- Page Canvas -->
+<main class="flex-1 p-margin-page">
+<div class="flex justify-between items-end mb-6">
+<div>
+<h1 class="font-headline-md text-headline-md text-text-primary">我的待办</h1>
+<p class="font-body-md text-body-md text-text-secondary mt-1">使用艾森豪威尔矩阵管理您的任务优先级</p>
+</div>
+<div class="flex gap-2">
+<div class="flex bg-surface-container-high rounded-xl p-1">
+<button class="px-4 py-1.5 rounded-lg bg-bg-card shadow-sm text-primary font-bold text-label-md">矩阵视图</button>
+<button class="px-4 py-1.5 rounded-lg text-text-secondary hover:text-text-primary text-label-md transition-colors">列表视图</button>
+</div>
+<button class="flex items-center gap-2 px-4 py-2 bg-bg-card border border-border-base rounded-xl text-label-md font-medium text-text-secondary hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                        筛选
+                    </button>
+</div>
+</div>
+<!-- Quadrant Matrix Layout -->
+<div class="quadrant-grid rounded-xl border border-border-base overflow-hidden h-[calc(100vh-220px)] min-h-[600px]">
+<!-- Q1: Important & Urgent -->
+<div class="bg-bg-card flex flex-col">
+<div class="p-4 border-b border-border-base flex justify-between items-center bg-[#FFF0F0]/30">
+<div class="flex items-center gap-2">
+<span class="w-2 h-6 bg-status-high-risk rounded-full"></span>
+<h2 class="font-title-md text-title-md text-status-high-risk font-bold">重要且紧急</h2>
+<span class="bg-status-high-risk/10 text-status-high-risk text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">DO NOW</span>
+</div>
+<span class="text-label-sm text-text-secondary font-medium">3 个任务</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-3">
+<!-- Task Card -->
+<div class="group bg-bg-card border border-border-base rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-title-md text-title-md text-text-primary group-hover:text-primary transition-colors">季度财务报表审核</h3>
+<span class="material-symbols-outlined text-text-placeholder opacity-0 group-hover:opacity-100 transition-opacity">more_horiz</span>
+</div>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-[#FFF0F0] text-status-high-risk text-label-sm px-2 py-0.5 rounded">高风险</span>
+<span class="bg-surface-container-low text-primary text-label-sm px-2 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">event</span> 今日截止
+                                </span>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-border-base/50">
+<div class="flex -space-x-2">
+<img class="w-6 h-6 rounded-full border-2 border-bg-card" data-alt="Close up of a professional male designer with glasses. Modern corporate style photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDmIFGzzFbWQ65P540JibK4nhCWD7G0qoNi0I-pNY1icvcnDZuHSUhcMl0XQf2W676ZgO4x78LkyCwbftq2asVzclC_VaFEyNiCDkx1sHda4ooHOKaGcLxPo4yOvBamR07ITvmEggtL7eGu0lB_IXDPShwpeVByJLadmT3lGa-LZLDYdWXIhsKn6hMoienuCdx6Oa9EILGb0rkgGrm98bjOzwtagYsABu0tj9vI549zB0KzzzEI7xMvdNA1gyYZKNRGoV5Bw_3fktg"/>
+<div class="w-6 h-6 rounded-full bg-surface-container-highest border-2 border-bg-card flex items-center justify-center text-[10px] font-bold text-text-secondary">+2</div>
+</div>
+<span class="text-label-sm text-text-secondary">负责人: 陈工</span>
+</div>
+</div>
+<div class="group bg-bg-card border border-border-base rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-title-md text-title-md text-text-primary group-hover:text-primary transition-colors">核心系统宕机紧急修复</h3>
+</div>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-[#FFF0F0] text-status-high-risk text-label-sm px-2 py-0.5 rounded">紧急</span>
+<span class="bg-surface-container-low text-primary text-label-sm px-2 py-0.5 rounded">14:00 截止</span>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-border-base/50">
+<img class="w-6 h-6 rounded-full border-2 border-bg-card" data-alt="Portrait of a male professional. High quality corporate photography style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC2VWtVQ9hZWNyCEoK9kRne9ydTC1sa1ZVq-t-KHK_G2iZkDlsFiAiiaIucL70NooOieUMZTD9cyPGctChZW6l6tR0Kx1lTCOwhDyiJ6qDGv8WzqlUpP2JPNHmfrgLK57zb4Ajno2gKU5O708RQN_cKKLxdjqAnxPCM0HnZX-WXG0i6z1MQl0nZ4TyjPGOlpVjGHYDdhjQTGra2vRSl88Mt7YD1q8nMP2tsTy2xmGymZa7Vx9Op44F5BjimeS8QEfeAaVYtzxG4Po"/>
+<span class="text-label-sm text-text-secondary">负责人: 我</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Q2: Important & Not Urgent -->
+<div class="bg-bg-card flex flex-col">
+<div class="p-4 border-b border-border-base flex justify-between items-center bg-[#E8F0FF]/30">
+<div class="flex items-center gap-2">
+<span class="w-2 h-6 bg-status-todo rounded-full"></span>
+<h2 class="font-title-md text-title-md text-status-todo font-bold">重要不紧急</h2>
+<span class="bg-status-todo/10 text-status-todo text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">SCHEDULE</span>
+</div>
+<span class="text-label-sm text-text-secondary font-medium">5 个任务</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-3">
+<div class="group bg-bg-card border border-border-base rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-title-md text-title-md text-text-primary group-hover:text-primary transition-colors">年度品牌策略规划方案</h3>
+</div>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-[#E8F0FF] text-status-todo text-label-sm px-2 py-0.5 rounded">策略</span>
+<span class="bg-surface-container-low text-text-secondary text-label-sm px-2 py-0.5 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> 下周五
+                                </span>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-border-base/50">
+<img class="w-6 h-6 rounded-full border-2 border-bg-card" data-alt="Close up of a professional female executive in a modern office. Bright high-key lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuARZstmq4cVfp9dS5GCZ2VzSqtI51_gBaiHErUey8DjoDGVeiOCGYd6fpeAHTDWAkpSBMxQ2Zw9gg8RdECriNm2WswzlVblOFuH67dbOAvpsZnUex-UsJ5zUe6OdlQW-jNJxU-60e8tDjotDWcGO88BocWdOn2suOBNGHHHJpifGkKYXoPVkdzcn2bR6ijsdAN1TD6wwZSA4SohsmlGWkZSABgH7DXRJUpz0xUchUZo4Sp0XyBL3wneSUlROIJLFArCiLmq0ewny6k"/>
+<span class="text-label-sm text-text-secondary">负责人: 王总</span>
+</div>
+</div>
+<!-- Empty placeholder for adding task -->
+<button class="w-full py-4 border-2 border-dashed border-border-base rounded-xl text-text-placeholder hover:border-primary hover:text-primary transition-all flex flex-col items-center justify-center gap-2">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="text-label-md">添加长期计划任务</span>
+</button>
+</div>
+</div>
+<!-- Q3: Urgent & Not Important -->
+<div class="bg-bg-card flex flex-col">
+<div class="p-4 border-b border-border-base flex justify-between items-center bg-[#FFF5EB]/30">
+<div class="flex items-center gap-2">
+<span class="w-2 h-6 bg-status-at-risk rounded-full"></span>
+<h2 class="font-title-md text-title-md text-status-at-risk font-bold">紧急不重要</h2>
+<span class="bg-status-at-risk/10 text-status-at-risk text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">DELEGATE</span>
+</div>
+<span class="text-label-sm text-text-secondary font-medium">2 个任务</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-3">
+<div class="group bg-bg-card border border-border-base rounded-xl p-4 hover:shadow-md transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-title-md text-title-md text-text-primary group-hover:text-primary transition-colors">日常行政报销单据提交</h3>
+</div>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-[#FFF5EB] text-status-at-risk text-label-sm px-2 py-0.5 rounded">待委托</span>
+<span class="bg-surface-container-low text-primary text-label-sm px-2 py-0.5 rounded">17:00 前</span>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-border-base/50">
+<img class="w-6 h-6 rounded-full border-2 border-bg-card" data-alt="Portrait of a female worker in a bright creative studio space. Clean aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCY_YRAdxzuLAxSpdp-37DSOkRs6ddC3_-XONVBzfjFJwzTgwfHSinYZLjxoKnbYlO3yyN0JKiyDNyd86aanxnTvNQkp7A-zyKoYkBarmwWIXHknscZ3DLsmKPvM8KPQAKIoqLj5-SIr4vvsWi4cft0cXALI8VB8ISQr9WL-PAKRAooNCPLyNyIyppbCSXhTdkQ_KJ-Z7zH31Tv3kTdcTnNJZP0cXo6NVkJ3KfDCkjqX6gJTI6K0ob2lClXZlKnGrnJ3HdTWsnKbxA"/>
+<span class="text-label-sm text-text-secondary">负责人: 助理小张</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Q4: Not Important & Not Urgent -->
+<div class="bg-bg-card flex flex-col">
+<div class="p-4 border-b border-border-base flex justify-between items-center bg-[#F2F3F5]/50">
+<div class="flex items-center gap-2">
+<span class="w-2 h-6 bg-status-unupdated rounded-full"></span>
+<h2 class="font-title-md text-title-md text-status-unupdated font-bold">不重要不紧急</h2>
+<span class="bg-status-unupdated/20 text-status-unupdated text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">ELIMINATE</span>
+</div>
+<span class="text-label-sm text-text-secondary font-medium">1 个任务</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-3">
+<div class="group bg-bg-card border border-border-base rounded-xl p-4 opacity-70 grayscale-[0.5] hover:grayscale-0 hover:opacity-100 transition-all cursor-pointer">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-title-md text-title-md text-text-primary group-hover:text-primary transition-colors">办公桌面收纳与整理</h3>
+</div>
+<div class="flex flex-wrap gap-2 mb-3">
+<span class="bg-[#F2F3F5] text-status-unupdated text-label-sm px-2 py-0.5 rounded">琐事</span>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-border-base/50">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-text-placeholder">history</span>
+<span class="text-label-sm text-text-secondary">暂无期限</span>
+</div>
+<span class="text-label-sm text-text-secondary">负责人: 我</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Floating Action Button - Only for core task views -->
+<button class="fixed bottom-8 right-8 w-14 h-14 bg-primary text-on-primary rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-30">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: 'FILL' 1;">add</span>
+</button>
+</body></html>
