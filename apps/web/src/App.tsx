@@ -45,6 +45,10 @@ import {
   type SessionDetailResponse,
   type ThreadListItem,
 } from './api'
+import { AudioCapture } from './asr/audio/AudioCapture'
+import { BrowserSpeechProvider } from './asr/providers/BrowserSpeechProvider'
+import { FunAsrProvider } from './asr/providers/FunAsrProvider'
+import type { AsrEvent } from './asr/types'
 import './App.css'
 
 type Page =
@@ -172,79 +176,6 @@ type MinutesDraft = {
 }
 
 type RecordingState = 'idle' | 'recording' | 'paused'
-
-type BrowserSpeechRecognitionAlternative = {
-  transcript: string
-  confidence: number
-}
-
-type BrowserSpeechRecognitionResult = {
-  isFinal: boolean
-  length: number
-  0?: BrowserSpeechRecognitionAlternative
-}
-
-type BrowserSpeechRecognitionEvent = {
-  resultIndex: number
-  results: {
-    length: number
-    [index: number]: BrowserSpeechRecognitionResult
-  }
-}
-
-type BrowserSpeechRecognitionErrorEvent = {
-  error: string
-}
-
-type BrowserSpeechRecognition = {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null
-  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null
-  onend: (() => void) | null
-  start: () => void
-  stop: () => void
-}
-
-type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
-
-type SpeechRecognitionWindow = Window &
-  typeof globalThis & {
-    SpeechRecognition?: BrowserSpeechRecognitionConstructor
-    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
-  }
-
-type FunAsrMessage = {
-  mode?: string
-  text?: string
-  wav_name?: string
-  is_final?: boolean
-  timestamp?: string
-  spk_name?: string
-  spk_score?: number
-  speaker?: string | number
-  speaker_id?: string | number
-  spk?: string | number
-  spk_id?: string | number
-  sentence_info?: FunAsrSentence[]
-  sentences?: FunAsrSentence[]
-}
-
-type FunAsrSentence = {
-  text?: string
-  voice_text_str?: string
-  speaker?: string | number
-  speaker_id?: string | number
-  spk?: string | number
-  spk_id?: string | number
-}
-
-type AudioPreprocessState = {
-  previousInput: number
-  previousOutput: number
-  gain: number
-}
 
 type SettingsState = {
   system: {
@@ -1521,7 +1452,7 @@ function LiveMeetingPage({
   const [interimTranscript, setInterimTranscript] = useState('')
   const [interimSpeaker, setInterimSpeaker] = useState('Speaker 1')
   const [asrStatus, setAsrStatus] = useState('等待开始')
-  const [asrStats, setAsrStats] = useState({ sentKb: 0, messages: 0, micFrames: 0 })
+  const [asrStats, setAsrStats] = useState({ sentKb: 0, messages: 0, micFrames: 0, rms: 0, peak: 0, clippingRatio: 0 })
   const [assistantMessages, setAssistantMessages] = useState<AssistantChatMessage[]>([
     {
       id: 'assistant-intro',
@@ -1547,24 +1478,15 @@ function LiveMeetingPage({
       },
     ])
   }, [elapsedSeconds, interimSpeaker, interimTranscript, transcript, transcriptTurns])
-  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
-  const shouldRestartRecognitionRef = useRef(false)
-  const funAsrSocketRef = useRef<WebSocket | null>(null)
-  const finalizedFunAsrKeysRef = useRef<Set<string>>(new Set())
-  const mediaStreamRef = useRef<MediaStream | null>(null)
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
-  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null)
-  const audioMonitorGainRef = useRef<GainNode | null>(null)
-  const audioPreprocessRef = useRef<AudioPreprocessState>({ previousInput: 0, previousOutput: 0, gain: 1 })
-  const pcmQueueRef = useRef<Int16Array>(new Int16Array())
+  const audioCaptureRef = useRef<AudioCapture | null>(null)
+  const funAsrProviderRef = useRef<FunAsrProvider | null>(null)
+  const browserSpeechProviderRef = useRef<BrowserSpeechProvider | null>(null)
+  const providerUnsubscribeRef = useRef<(() => void) | null>(null)
   const sentBytesRef = useRef(0)
   const socketMessagesRef = useRef(0)
   const micFramesRef = useRef(0)
-  const lastStatsPaintRef = useRef(0)
   const recordingStartedAtRef = useRef<number | null>(null)
   const elapsedBeforeStartRef = useRef(0)
-  const recordingStateRef = useRef<RecordingState>('idle')
   const assistantMessageCounterRef = useRef(0)
 
   const isRecording = recordingState === 'recording'
@@ -1586,28 +1508,6 @@ function LiveMeetingPage({
     return () => window.clearInterval(timer)
   }, [isRecording])
 
-  useEffect(() => {
-    recordingStateRef.current = recordingState
-  }, [recordingState])
-
-  const persistTranscript = async (segments: TranscriptItem[]) => {
-    if (!authToken || !sessionId || segments.length === 0) return
-    try {
-      await api.createTranscription(authToken, sessionId, {
-        provider: 'browser-speech',
-        mode: 'realtime',
-        durationSeconds: elapsedSeconds,
-        segments: segments.map((segment) => ({
-          speakerText: segment.speaker,
-          text: segment.text,
-          startedAt: new Date().toISOString(),
-        })),
-      })
-    } catch (error) {
-      notify(error instanceof Error ? error.message : '转写内容保存失败')
-    }
-  }
-
   const persistProviderTranscript = async (provider: string, segments: TranscriptItem[]) => {
     if (!authToken || !sessionId || segments.length === 0) return
     try {
@@ -1626,250 +1526,101 @@ function LiveMeetingPage({
     }
   }
 
-  const createRecognition = () => {
-    const Recognition = (window as SpeechRecognitionWindow).SpeechRecognition ?? (window as SpeechRecognitionWindow).webkitSpeechRecognition
-    if (!Recognition) return null
-    const recognition = new Recognition()
-    recognition.continuous = true
-    recognition.interimResults = true
-    recognition.lang = 'zh-CN'
-    recognition.onresult = (event) => {
-      const finalSegments: TranscriptItem[] = []
-      let interim = ''
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        const result = event.results[index]
-        const text = result[0]?.transcript.trim() ?? ''
-        if (!text) continue
-        if (result.isFinal) {
-          finalSegments.push({
-            id: `tr-${Date.now()}-${index}`,
-            speaker: 'Speaker 1',
-            role: '实时转写',
-            time: formatClock(new Date().toISOString()),
-            text,
-          })
-        } else {
-          interim = text
-        }
-      }
-      if (finalSegments.length > 0) {
-        setTranscript((items) => appendOrMergeTranscript(items, finalSegments))
-        void persistTranscript(finalSegments)
-      }
-      setInterimTranscript(interim)
+  const appendFinalTranscript = (provider: 'funasr' | 'browser-speech', speaker: string, role: string, text: string) => {
+    const segment = {
+      id: `${provider}-${Date.now()}`,
+      speaker,
+      role,
+      time: formatClock(new Date().toISOString()),
+      text,
     }
-    recognition.onerror = (event) => {
-      if (event.error === 'no-speech') return
-      shouldRestartRecognitionRef.current = false
-      setRecordingState('idle')
-      notify(event.error === 'not-allowed' ? '浏览器未授权麦克风，无法录音' : `语音识别失败：${event.error}`)
-    }
-    recognition.onend = () => {
-      if (!shouldRestartRecognitionRef.current) return
-      try {
-        recognition.start()
-      } catch {
-        shouldRestartRecognitionRef.current = false
-      }
-    }
-    return recognition
+    setTranscript((items) => appendOrMergeTranscript(items, [segment]))
+    setInterimTranscript('')
+    setInterimSpeaker('Speaker 1')
+    void persistProviderTranscript(provider, [segment])
   }
 
-  const paintAsrStats = (force = false) => {
-    const now = Date.now()
-    if (!force && now - lastStatsPaintRef.current <= 500) return
-    lastStatsPaintRef.current = now
-    setAsrStats((current) => ({
-      ...current,
+  const handleAsrEvent = (provider: 'funasr' | 'browser-speech', event: AsrEvent) => {
+    if (event.type === 'partial') {
+      setInterimTranscript(event.text)
+      setInterimSpeaker(event.speaker)
+      return
+    }
+    if (event.type === 'final') {
+      appendFinalTranscript(provider, event.speaker, provider === 'funasr' ? 'FunASR 实时转写' : '实时转写', event.text)
+      return
+    }
+    if (event.type === 'status') {
+      setAsrStatus(event.message)
+      return
+    }
+    if (event.type === 'error') {
+      setAsrStatus(event.message)
+      notify(event.message)
+      return
+    }
+    sentBytesRef.current = event.sentBytes ?? sentBytesRef.current
+    socketMessagesRef.current = event.receivedMessages ?? socketMessagesRef.current
+    micFramesRef.current = event.micFrames ?? micFramesRef.current
+    setAsrStats({
       sentKb: Math.round(sentBytesRef.current / 1024),
+      messages: socketMessagesRef.current,
       micFrames: micFramesRef.current,
-    }))
+      rms: event.rms ?? asrStats.rms,
+      peak: event.peak ?? asrStats.peak,
+      clippingRatio: event.clippingRatio ?? asrStats.clippingRatio,
+    })
   }
 
-  const enqueuePcmToSocket = (socket: WebSocket | null, pcm: Int16Array) => {
-    paintAsrStats()
-    if (!socket || socket.readyState !== WebSocket.OPEN) return
-    pcmQueueRef.current = concatInt16Arrays(pcmQueueRef.current, pcm)
-    const samplesPerPacket = 960
-    while (pcmQueueRef.current.length >= samplesPerPacket) {
-      const chunk = pcmQueueRef.current.slice(0, samplesPerPacket)
-      pcmQueueRef.current = pcmQueueRef.current.slice(samplesPerPacket)
-      socket.send(chunk.buffer)
-      sentBytesRef.current += chunk.byteLength
-      paintAsrStats()
+  const stopAsr = () => {
+    const diagnostics = audioCaptureRef.current?.exportDiagnostics({
+      provider: recordingProvider,
+      sentBytes: sentBytesRef.current,
+      receivedMessages: socketMessagesRef.current,
+    })
+    if (diagnostics) {
+      downloadBlob('sent-to-funasr.wav', diagnostics.wavBlob)
+      downloadBlob('audio-stats.json', diagnostics.statsBlob)
     }
-  }
-
-  const enqueueFunAsrPcm = (pcm: Int16Array) => {
-    enqueuePcmToSocket(funAsrSocketRef.current, pcm)
-  }
-
-  const stopStreamingAudio = () => {
-    audioProcessorRef.current?.disconnect()
-    audioMonitorGainRef.current?.disconnect()
-    audioSourceRef.current?.disconnect()
-    audioContextRef.current?.close().catch(() => undefined)
-    mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
-    const funAsrSocket = funAsrSocketRef.current
-    if (funAsrSocket && funAsrSocket.readyState === WebSocket.OPEN) {
-      funAsrSocket.send(JSON.stringify({ is_speaking: false }))
-      window.setTimeout(() => funAsrSocket.close(), 300)
-    }
-    audioProcessorRef.current = null
-    audioMonitorGainRef.current = null
-    audioSourceRef.current = null
-    audioContextRef.current = null
-    mediaStreamRef.current = null
-    funAsrSocketRef.current = null
-    pcmQueueRef.current = new Int16Array()
+    providerUnsubscribeRef.current?.()
+    providerUnsubscribeRef.current = null
+    audioCaptureRef.current?.stop()
+    audioCaptureRef.current = null
+    funAsrProviderRef.current?.stop()
+    funAsrProviderRef.current = null
+    browserSpeechProviderRef.current?.stop()
+    browserSpeechProviderRef.current = null
     sentBytesRef.current = 0
     socketMessagesRef.current = 0
     micFramesRef.current = 0
-    lastStatsPaintRef.current = 0
   }
 
   useEffect(() => {
     return () => {
-      shouldRestartRecognitionRef.current = false
-      recognitionRef.current?.stop()
-      stopStreamingAudio()
+      providerUnsubscribeRef.current?.()
+      audioCaptureRef.current?.stop()
+      funAsrProviderRef.current?.stop()
+      browserSpeechProviderRef.current?.stop()
     }
   }, [])
 
-  const startMicrophoneStream = async (targetSampleRate: number, onPcm: (pcm: Int16Array) => void) => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error('当前浏览器不支持麦克风录音')
-    }
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: { ideal: 1 },
-        sampleRate: { ideal: 48000 },
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: true,
-      },
-    })
-    const audioTracks = stream.getAudioTracks()
-    if (audioTracks.length === 0) {
-      stream.getTracks().forEach((track) => track.stop())
-      throw new Error('没有检测到可用的麦克风输入')
-    }
-    const audioContext = new AudioContext()
-    await audioContext.resume()
-    const source = audioContext.createMediaStreamSource(stream)
-    const processor = audioContext.createScriptProcessor(2048, 1, 1)
-    const mutedMonitor = audioContext.createGain()
-    mutedMonitor.gain.value = 0
-    audioPreprocessRef.current = { previousInput: 0, previousOutput: 0, gain: 1 }
-    processor.onaudioprocess = (event) => {
-      const input = event.inputBuffer.getChannelData(0)
-      const enhanced = enhanceSpeechFrame(input, audioPreprocessRef.current)
-      micFramesRef.current += 1
-      onPcm(downsampleToPcm16(enhanced, audioContext.sampleRate, targetSampleRate))
-      paintAsrStats()
-    }
-    source.connect(processor)
-    processor.connect(mutedMonitor)
-    mutedMonitor.connect(audioContext.destination)
-    mediaStreamRef.current = stream
-    audioContextRef.current = audioContext
-    audioSourceRef.current = source
-    audioProcessorRef.current = processor
-    audioMonitorGainRef.current = mutedMonitor
-  }
-
-  const handleFunAsrMessage = (message: FunAsrMessage) => {
-    socketMessagesRef.current += 1
-    setAsrStats((current) => ({ ...current, messages: socketMessagesRef.current }))
-    const text = stringFromUnknown(message.text)
-    if (!text) {
-      setAsrStatus('FunASR 已返回消息')
-      return
-    }
-    const mode = message.mode ?? ''
-    const final = message.is_final === true || mode.includes('offline')
-    const speaker = getFunAsrSpeaker(message)
-    if (!final) {
-      setInterimTranscript(text)
-      setInterimSpeaker(speaker)
-      setAsrStatus('FunASR 正在接收临时识别结果')
-      return
-    }
-    const key = `${message.wav_name ?? 'funasr'}:${message.timestamp ?? text}`
-    if (finalizedFunAsrKeysRef.current.has(key)) return
-    finalizedFunAsrKeysRef.current.add(key)
-    const segments = getFunAsrTranscriptParts(message, text).map((part, index) => ({
-      id: `funasr-${Date.now()}-${finalizedFunAsrKeysRef.current.size}-${index}`,
-      speaker: part.speaker,
-      role: 'FunASR 实时转写',
-      time: formatClock(new Date().toISOString()),
-      text: part.text,
-    }))
-    setTranscript((items) => appendOrMergeTranscript(items, segments))
-    setInterimTranscript('')
-    setInterimSpeaker('Speaker 1')
-    setAsrStatus('已收到 FunASR 稳定转写结果，已合并连续发言')
-    void persistProviderTranscript('funasr', segments)
-  }
-
   const startFunAsrRecording = async () => {
     if (!authToken || !sessionId) throw new Error('当前会议还没有可用的后端会话')
+    setAsrStats({ sentKb: 0, messages: 0, micFrames: 0, rms: 0, peak: 0, clippingRatio: 0 })
     sentBytesRef.current = 0
     socketMessagesRef.current = 0
     micFramesRef.current = 0
-    setAsrStats({ sentKb: 0, messages: 0, micFrames: 0 })
-    const socket = new WebSocket(FUNASR_WS_URL, 'binary')
-    socket.binaryType = 'arraybuffer'
-    setAsrStatus('正在连接本地 FunASR')
-    await new Promise<void>((resolve, reject) => {
-      const timer = window.setTimeout(() => {
-        reject(new Error(`连接本地 FunASR 超时：${FUNASR_WS_URL}`))
-      }, 5000)
-      socket.onopen = () => {
-        window.clearTimeout(timer)
-        resolve()
-      }
-      socket.onerror = () => {
-        window.clearTimeout(timer)
-        reject(new Error(`无法连接本地 FunASR：${FUNASR_WS_URL}`))
-      }
-      socket.onclose = () => {
-        window.clearTimeout(timer)
-        reject(new Error(`本地 FunASR 连接已关闭：${FUNASR_WS_URL}`))
-      }
+
+    const provider = new FunAsrProvider()
+    const capture = new AudioCapture()
+    providerUnsubscribeRef.current = provider.onEvent((event) => handleAsrEvent('funasr', event))
+    await provider.start({ wsUrl: FUNASR_WS_URL, sessionId })
+    await capture.start({
+      onPcm: (pcm) => provider.pushAudio(pcm),
+      onStats: (stats) => handleAsrEvent('funasr', { type: 'stats', micFrames: stats.micFrames, rms: stats.rms, peak: stats.peak, clippingRatio: stats.clippingRatio }),
     })
-    funAsrSocketRef.current = socket
-    finalizedFunAsrKeysRef.current = new Set()
-    setInterimSpeaker('Speaker 1')
-    socket.send(
-      JSON.stringify({
-        mode: '2pass',
-        wav_name: `meeting-${sessionId}-${Date.now()}`,
-        wav_format: 'pcm',
-        audio_fs: 16000,
-        is_speaking: true,
-        chunk_size: [5, 10, 5],
-        chunk_interval: 10,
-        itn: true,
-      }),
-    )
-    setAsrStatus('FunASR 已连接，正在发送音频')
-    socket.onmessage = (event) => {
-      if (typeof event.data !== 'string') return
-      try {
-        handleFunAsrMessage(JSON.parse(event.data) as FunAsrMessage)
-      } catch {
-        notify('FunASR 返回了无法解析的结果')
-      }
-    }
-    socket.onerror = () => {
-      setAsrStatus('FunASR WebSocket 出错')
-      notify('FunASR WebSocket 出错')
-    }
-    socket.onclose = () => {
-      if (recordingStateRef.current === 'recording') setAsrStatus('FunASR 连接已关闭，请确认本地服务仍在运行')
-    }
-    await startMicrophoneStream(16000, enqueueFunAsrPcm)
+    funAsrProviderRef.current = provider
+    audioCaptureRef.current = capture
   }
 
   const startBrowserRecognition = () => {
@@ -1877,21 +1628,16 @@ function LiveMeetingPage({
       notify('当前会议还没有可用的后端会话')
       return
     }
-    const recognition = createRecognition()
-    if (!recognition) {
-      notify('当前浏览器不支持实时语音识别，请使用 Chrome 或 Edge')
-      return
-    }
     try {
-      recognitionRef.current = recognition
-      shouldRestartRecognitionRef.current = true
+      const provider = new BrowserSpeechProvider()
+      providerUnsubscribeRef.current = provider.onEvent((event) => handleAsrEvent('browser-speech', event))
+      provider.start()
+      browserSpeechProviderRef.current = provider
       recordingStartedAtRef.current = Date.now()
-      recognition.start()
       setRecordingProvider('browser')
       setRecordingState('recording')
-    } catch {
-      shouldRestartRecognitionRef.current = false
-      notify('录音启动失败，请检查浏览器麦克风权限')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '录音启动失败，请检查浏览器麦克风权限')
       setAsrStatus('浏览器识别启动失败')
     }
   }
@@ -1908,7 +1654,7 @@ function LiveMeetingPage({
       setRecordingState('recording')
       notify('已连接本地 FunASR 实时识别')
     } catch (error) {
-      stopStreamingAudio()
+      stopAsr()
       const fallbackMessage =
         error instanceof Error
           ? `${error.message}，请先运行 scripts/start-funasr.ps1，已切换浏览器识别`
@@ -1920,9 +1666,7 @@ function LiveMeetingPage({
   }
 
   const pauseRecording = () => {
-    shouldRestartRecognitionRef.current = false
-    recognitionRef.current?.stop()
-    stopStreamingAudio()
+    stopAsr()
     if (recordingStartedAtRef.current) {
       elapsedBeforeStartRef.current += Date.now() - recordingStartedAtRef.current
       setElapsedSeconds(Math.floor(elapsedBeforeStartRef.current / 1000))
@@ -1938,10 +1682,7 @@ function LiveMeetingPage({
     if (isRecording) {
       pauseRecording()
     }
-    shouldRestartRecognitionRef.current = false
-    recognitionRef.current?.stop()
-    recognitionRef.current = null
-    stopStreamingAudio()
+    stopAsr()
     setRecordingProvider(null)
     setAsrStatus('录音已停止')
     setRecordingState('idle')
@@ -2073,7 +1814,7 @@ function LiveMeetingPage({
           <span>{asrStatus}</span>
           {recordingProvider === 'funasr' && (
             <small>
-              麦克风帧 {asrStats.micFrames} · 已发送 {asrStats.sentKb} KB · 收到 {asrStats.messages} 条消息
+              麦克风帧 {asrStats.micFrames} · 已发送 {asrStats.sentKb} KB · 收到 {asrStats.messages} 条消息 · RMS {asrStats.rms.toFixed(3)} · 峰值 {asrStats.peak.toFixed(2)} · 削波 {(asrStats.clippingRatio * 100).toFixed(2)}%
             </small>
           )}
         </div>
@@ -4025,36 +3766,13 @@ function clockToSeconds(value: string) {
   return parts[0] * 3600 + parts[1] * 60 + parts[2]
 }
 
-function getFunAsrTranscriptParts(message: FunAsrMessage, fallbackText: string) {
-  const sentenceParts = (message.sentence_info ?? message.sentences ?? [])
-    .map((sentence) => ({
-      speaker: resolveSpeakerLabel(sentence.speaker, sentence.speaker_id, sentence.spk, sentence.spk_id, getFunAsrSpeaker(message)),
-      text: stringFromUnknown(sentence.text) || stringFromUnknown(sentence.voice_text_str),
-    }))
-    .filter((part) => part.text)
-
-  const parts = sentenceParts.length ? sentenceParts : [{ speaker: getFunAsrSpeaker(message), text: fallbackText }]
-  return parts.reduce<Array<{ speaker: string; text: string }>>((merged, part) => {
-    const previous = merged[merged.length - 1]
-    if (!previous || previous.speaker !== part.speaker) return [...merged, part]
-    return [...merged.slice(0, -1), { ...previous, text: mergeTranscriptText(previous.text, part.text) }]
-  }, [])
-}
-
-function getFunAsrSpeaker(message: FunAsrMessage) {
-  if (message.spk_name && message.spk_name !== 'unknown' && (message.spk_score ?? 0) >= 0.2) {
-    return message.spk_name
-  }
-  return resolveSpeakerLabel(message.speaker, message.speaker_id, message.spk, message.spk_id, 'Speaker 1')
-}
-
-function resolveSpeakerLabel(...values: Array<string | number | undefined>) {
-  const value = values.find((item) => item !== undefined && String(item).trim() !== '')
-  if (value === undefined) return 'Speaker 1'
-  const raw = String(value).trim()
-  if (/^speaker\s*\d+$/i.test(raw)) return raw.replace(/^speaker\s*/i, 'Speaker ')
-  if (/^\d+$/.test(raw)) return `Speaker ${raw}`
-  return raw
+function downloadBlob(name: string, blob: Blob) {
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 function stringValue(value: unknown) {
@@ -4088,69 +3806,6 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor((safeSeconds % 3600) / 60)
   const remainingSeconds = safeSeconds % 60
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
-}
-
-function enhanceSpeechFrame(input: Float32Array, state: AudioPreprocessState) {
-  const output = new Float32Array(input.length)
-  let sumSquares = 0
-  for (let index = 0; index < input.length; index += 1) {
-    const sample = input[index]
-    const filtered = sample - state.previousInput + 0.995 * state.previousOutput
-    state.previousInput = sample
-    state.previousOutput = filtered
-    output[index] = filtered
-    sumSquares += filtered * filtered
-  }
-
-  const rms = Math.sqrt(sumSquares / Math.max(1, output.length))
-  const desiredGain = rms > 0.003 ? Math.min(4, Math.max(0.75, 0.08 / rms)) : state.gain
-  state.gain = state.gain * 0.92 + desiredGain * 0.08
-  for (let index = 0; index < output.length; index += 1) {
-    output[index] = Math.max(-0.98, Math.min(0.98, output[index] * state.gain))
-  }
-  return output
-}
-
-function downsampleToPcm16(input: Float32Array, inputSampleRate: number, outputSampleRate: number) {
-  if (outputSampleRate === inputSampleRate) return floatToPcm16(input)
-  const sampleRateRatio = inputSampleRate / outputSampleRate
-  const outputLength = Math.floor(input.length / sampleRateRatio)
-  const output = new Int16Array(outputLength)
-  for (let index = 0; index < outputLength; index += 1) {
-    const start = Math.floor(index * sampleRateRatio)
-    const end = Math.min(Math.floor((index + 1) * sampleRateRatio), input.length)
-    let sum = 0
-    for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
-      sum += input[sampleIndex]
-    }
-    const average = sum / Math.max(1, end - start)
-    output[index] = clampPcmSample(average)
-  }
-  return output
-}
-
-function floatToPcm16(input: Float32Array) {
-  const output = new Int16Array(input.length)
-  for (let index = 0; index < input.length; index += 1) {
-    output[index] = clampPcmSample(input[index])
-  }
-  return output
-}
-
-function clampPcmSample(sample: number) {
-  const clamped = Math.max(-1, Math.min(1, sample))
-  return clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff
-}
-
-function concatInt16Arrays(left: Int16Array, right: Int16Array) {
-  const output = new Int16Array(left.length + right.length)
-  output.set(left, 0)
-  output.set(right, left.length)
-  return output
-}
-
-function stringFromUnknown(value: unknown) {
-  return typeof value === 'string' ? value.trim() : ''
 }
 
 function formatTimeRange(start?: string | null, end?: string | null) {

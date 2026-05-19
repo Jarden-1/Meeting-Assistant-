@@ -36,3 +36,6 @@ Thumbs.db
 *.sw?
 .ace-tool/
 .playwright-mcp/
+
+.pi-tmp/
+.venv-funasr/

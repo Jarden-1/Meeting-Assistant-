@@ -21,7 +21,10 @@ $repos = @(
   },
   @{
     Name = "punc"
-    Url = "https://www.modelscope.cn/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727.git"
+    # README 推荐的 ct-punc 会解析到通用大标点模型：
+    # iic/punc_ct-transformer_cn-en-common-vocab471067-large
+    # 不使用 zh-cn-common-vad_realtime-vocab272727；那个是实时小模型，标点质量明显较差。
+    Url = "https://www.modelscope.cn/iic/punc_ct-transformer_cn-en-common-vocab471067-large.git"
     Dir = Join-Path $modelsRoot "ct-punc"
   },
   @{

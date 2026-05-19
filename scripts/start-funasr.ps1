@@ -1,30 +1,35 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$pythonExe = "D:\conda\envs\funasr310\python.exe"
+$pythonExe = Join-Path $root ".venv-funasr\Scripts\python.exe"
 $serverScript = Join-Path $root "vendor\FunASR\runtime\python\websocket\funasr_wss_server.py"
 $logFile = Join-Path $root "funasr-server.log"
 $errorLogFile = Join-Path $root "funasr-server.err.log"
 $modelsRoot = Join-Path $root "funasr-runtime-resources\hf-models"
 $offlineModelDir = Join-Path $modelsRoot "paraformer-zh"
-$onlineModelDir = Join-Path $modelsRoot "paraformer-zh-streaming"
-$vadModelDir = Join-Path $modelsRoot "fsmn-vad"
 $puncModelDir = Join-Path $modelsRoot "ct-punc"
 $svModelDir = Join-Path $modelsRoot "campplus"
 $offlineSegmentsDir = Join-Path $root "funasr-offline-segments"
 
 if (!(Test-Path $pythonExe)) {
-  throw "FunASR Python environment not found: $pythonExe"
+  throw "FunASR Python environment not found: $pythonExe. Run scripts/setup-funasr.ps1 first."
 }
 
 if (!(Test-Path $serverScript)) {
   throw "FunASR server script not found: $serverScript"
 }
 
-$requiredModelDirs = @($offlineModelDir, $onlineModelDir, $vadModelDir, $puncModelDir, $svModelDir)
+$requiredModelDirs = @($offlineModelDir, $puncModelDir, $svModelDir)
 foreach ($dir in $requiredModelDirs) {
   if (!(Test-Path $dir)) {
     throw "FunASR model directory not found: $dir. Run scripts/download-funasr-models.ps1 first."
+  }
+}
+
+foreach ($module in @("torch", "torchaudio", "funasr", "modelscope", "websockets", "numpy", "scipy")) {
+  & $pythonExe -W "ignore::SyntaxWarning" -c "import $module" 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    throw "Missing Python module '$module' in $pythonExe. Run scripts/setup-funasr.ps1 first."
   }
 }
 
@@ -65,13 +70,16 @@ Start-Process `
     "--device", "cpu",
     "--ncpu", "4",
     "--asr_model", $offlineModelDir,
-    "--asr_model_online", $onlineModelDir,
-    "--vad_model", $vadModelDir,
+    "--asr_model_online", "__disabled__",
+    "--vad_model", "__disabled__",
     "--punc_model", $puncModelDir,
     "--sv_model", $svModelDir,
-    "--speaker_cluster_threshold", "0.45",
-    "--speaker_cluster_min_ms", "600",
-    "--speaker_cluster_min_new_ms", "2500",
+    "--worker_threads", "3",
+    "--concurrent_vad", "1",
+    "--concurrent_asr_online", "1",
+    "--concurrent_asr_offline", "1",
+    "--concurrent_punc", "1",
+    "--concurrent_sv", "1",
     "--save_offline_segments",
     "--save_offline_segments_dir", $offlineSegmentsDir
   ) `
