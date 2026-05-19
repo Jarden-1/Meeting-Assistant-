@@ -1641,7 +1641,7 @@ function LiveMeetingPage({
     paintAsrStats()
     if (!socket || socket.readyState !== WebSocket.OPEN) return
     pcmQueueRef.current = concatInt16Arrays(pcmQueueRef.current, pcm)
-    const samplesPerPacket = 3200
+    const samplesPerPacket = 960
     while (pcmQueueRef.current.length >= samplesPerPacket) {
       const chunk = pcmQueueRef.current.slice(0, samplesPerPacket)
       pcmQueueRef.current = pcmQueueRef.current.slice(samplesPerPacket)
@@ -1700,7 +1700,7 @@ function LiveMeetingPage({
     const audioContext = new AudioContext({ sampleRate })
     await audioContext.resume()
     const source = audioContext.createMediaStreamSource(stream)
-    const processor = audioContext.createScriptProcessor(4096, 1, 1)
+    const processor = audioContext.createScriptProcessor(1024, 1, 1)
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0)
       micFramesRef.current += 1
