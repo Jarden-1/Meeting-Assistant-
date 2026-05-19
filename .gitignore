@@ -5,6 +5,7 @@ node_modules/
 dist/
 dist-ssr/
 funasr-runtime-resources/
+funasr-offline-segments/
 vendor/
 
 # Logs
@@ -34,3 +35,4 @@ Thumbs.db
 *.sln
 *.sw?
 .ace-tool/
+.playwright-mcp/

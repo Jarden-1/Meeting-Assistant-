@@ -1,33 +1,33 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$modelsRoot = Join-Path $root "funasr-runtime-resources\models"
+$modelsRoot = Join-Path $root "funasr-runtime-resources\hf-models"
 
 $repos = @(
   @{
     Name = "paraformer-offline"
     Url = "https://www.modelscope.cn/damo/speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch.git"
-    Dir = Join-Path $modelsRoot "speech_paraformer-large-vad-punc_asr_nat-zh-cn-16k-common-vocab8404-pytorch"
+    Dir = Join-Path $modelsRoot "paraformer-zh"
   },
   @{
     Name = "paraformer-online"
     Url = "https://www.modelscope.cn/damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online.git"
-    Dir = Join-Path $modelsRoot "speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online"
+    Dir = Join-Path $modelsRoot "paraformer-zh-streaming"
   },
   @{
     Name = "vad"
     Url = "https://www.modelscope.cn/iic/speech_fsmn_vad_zh-cn-16k-common-pytorch.git"
-    Dir = Join-Path $modelsRoot "speech_fsmn_vad_zh-cn-16k-common-pytorch"
+    Dir = Join-Path $modelsRoot "fsmn-vad"
   },
   @{
     Name = "punc"
     Url = "https://www.modelscope.cn/iic/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727.git"
-    Dir = Join-Path $modelsRoot "punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727"
+    Dir = Join-Path $modelsRoot "ct-punc"
   },
   @{
     Name = "speaker-verification"
     Url = "https://www.modelscope.cn/iic/speech_campplus_sv_zh-cn_16k-common.git"
-    Dir = Join-Path $modelsRoot "speech_campplus_sv_zh-cn_16k-common"
+    Dir = Join-Path $modelsRoot "campplus"
   }
 )
 

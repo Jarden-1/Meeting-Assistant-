@@ -118,6 +118,14 @@ export type ReportDraftResponse = {
   warnings?: unknown[]
 }
 
+export type ReportProgressResponse = {
+  status: 'idle' | 'running' | 'completed' | 'failed'
+  stage: string
+  progress: number
+  message: string
+  updatedAt?: string
+}
+
 export type LlmSettingsResponse = {
   provider: string
   baseUrlConfigured: boolean
@@ -142,6 +150,14 @@ export type AssistantAskResponse = {
   createdAt: string
 }
 
+export type AssistantTranscriptSnapshotItem = {
+  speakerText?: string
+  speaker?: string
+  text: string
+  time?: string
+  role?: string
+}
+
 export type TencentAsrSessionResponse = {
   provider: 'tencent'
   mode: string
@@ -159,14 +175,17 @@ type RequestOptions = {
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), 90000)
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: options.method ?? 'GET',
+    signal: controller.signal,
     headers: {
       ...(options.body !== undefined ? { 'content-type': 'application/json' } : {}),
       ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  }).finally(() => window.clearTimeout(timeout))
 
   const payload = (await response.json()) as ApiEnvelope<T> | { error?: { message?: string; code?: string } }
   if (!response.ok || !('data' in payload)) {
@@ -297,11 +316,11 @@ export const api = {
       },
     )
   },
-  askAssistant(token: string, sessionId: string, question: string) {
+  askAssistant(token: string, sessionId: string, question: string, liveTranscriptSnapshot: AssistantTranscriptSnapshotItem[] = []) {
     return request<AssistantAskResponse>(`/sessions/${sessionId}/assistant/ask`, {
       method: 'POST',
       token,
-      body: { question, inputMode: 'text' },
+      body: { question, inputMode: 'text', liveTranscriptSnapshot },
     })
   },
   generateReportDraft(token: string, sessionId: string, meetingContent?: string) {
@@ -313,6 +332,16 @@ export const api = {
   },
   getReportDraft(token: string, sessionId: string) {
     return request<ReportDraftResponse>(`/sessions/${sessionId}/follow-up-draft`, { token })
+  },
+  getReportProgress(token: string, sessionId: string) {
+    return request<ReportProgressResponse>(`/sessions/${sessionId}/follow-up-draft/progress`, { token })
+  },
+  finalizeSession(token: string, sessionId: string, content: unknown) {
+    return request<SessionDetailResponse>(`/sessions/${sessionId}/finalize`, {
+      method: 'POST',
+      token,
+      body: { content },
+    })
   },
   getMyTodos(token: string) {
     return request<{ matrix: Record<string, Array<Record<string, unknown>>> }>('/action-items/mine?view=matrix&status=pending,in_progress', {

@@ -9,10 +9,16 @@ import { AuthService } from './auth.service';
     JwtModule.registerAsync({
       global: true,
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET') || 'meeting-assistant-dev-secret',
-        signOptions: { expiresIn: '30d' },
-      }),
+      useFactory: (config: ConfigService) => {
+        const secret = config.get<string>('JWT_SECRET');
+        if (!secret && process.env.NODE_ENV === 'production') {
+          throw new Error('JWT_SECRET must be configured in production');
+        }
+        return {
+          secret: secret || 'meeting-assistant-dev-secret',
+          signOptions: { expiresIn: '30d' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

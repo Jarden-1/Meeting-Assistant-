@@ -26,7 +26,7 @@ export class AssistantService {
       },
     });
 
-    const context = await this.memory.buildAssistantContext(userId, sessionId, dto.question);
+    const context = await this.memory.buildAssistantContext(userId, sessionId, dto.question, dto.liveTranscriptSnapshot ?? []);
     const result = await this.ai.assistantAsk(userId, context);
     const message = await this.prisma.assistantMessage.create({
       data: {

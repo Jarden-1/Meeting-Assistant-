@@ -36,30 +36,50 @@ export class TranscriptionService {
         ? [{ text, speakerText: 'Speaker 1', sequence: currentCount + 1 }]
         : [];
 
-    if (segments.length) {
-      await this.prisma.transcriptSegment.createMany({
-        data: segments.map((segment, index) => ({
-          userId,
-          threadId: session.threadId,
-          sessionId,
-          transcriptionId: transcription.id,
-          speakerText: segment.speakerText ?? 'Speaker 1',
-          startedAt: parseDate(segment.startedAt),
-          endedAt: parseDate(segment.endedAt),
-          text: segment.text,
-          source: 'transcription',
-          sequence: segment.sequence ?? currentCount + index + 1,
-          confidence: segment.confidence,
-          provider: dto.provider ?? 'tencent',
-        })),
+    const savedSegments = [];
+    for (const [index, segment] of segments.entries()) {
+      const startedAt = parseDate(segment.startedAt);
+      const endedAt = parseDate(segment.endedAt);
+      const speakerText = segment.speakerText?.trim() || 'Speaker 1';
+      const provider = dto.provider ?? 'tencent';
+      const sequence = segment.sequence ?? currentCount + index + 1;
+      const lastSegment = await this.prisma.transcriptSegment.findFirst({
+        where: { userId, sessionId },
+        orderBy: { sequence: 'desc' },
       });
+
+      if (lastSegment && this.canMergeRealtimeSegment(lastSegment, { speakerText, provider, startedAt, endedAt, text: segment.text })) {
+        const updated = await this.prisma.transcriptSegment.update({
+          where: { id: lastSegment.id },
+          data: {
+            text: this.mergeTranscriptText(lastSegment.text, segment.text),
+            endedAt: endedAt ?? startedAt ?? lastSegment.endedAt,
+            confidence: segment.confidence ?? lastSegment.confidence,
+          },
+        });
+        savedSegments.push(updated);
+      } else {
+        const created = await this.prisma.transcriptSegment.create({
+          data: {
+            userId,
+            threadId: session.threadId,
+            sessionId,
+            transcriptionId: transcription.id,
+            speakerText,
+            startedAt,
+            endedAt,
+            text: segment.text,
+            source: 'transcription',
+            sequence,
+            confidence: segment.confidence,
+            provider,
+          },
+        });
+        savedSegments.push(created);
+      }
     }
 
     await this.rebuildMeetingContent(userId, sessionId);
-    const savedSegments = await this.prisma.transcriptSegment.findMany({
-      where: { userId, sessionId, transcriptionId: transcription.id },
-      orderBy: { sequence: 'asc' },
-    });
 
     return {
       id: transcription.id,
@@ -241,6 +261,49 @@ export class TranscriptionService {
       sequence: this.numberLike(row.index) ?? fallbackIndex + 1,
       confidence: this.numberLike(row.confidence) ?? undefined,
     };
+  }
+
+  private canMergeRealtimeSegment(
+    previous: {
+      speakerText: string;
+      provider: string | null;
+      source: string;
+      startedAt: Date | null;
+      endedAt: Date | null;
+      createdAt: Date;
+      text: string;
+    } | null,
+    next: {
+      speakerText: string;
+      provider: string;
+      startedAt: Date | null;
+      endedAt: Date | null;
+      text: string;
+    },
+  ) {
+    if (!previous) return false;
+    if (previous.source !== 'transcription') return false;
+    if (previous.speakerText !== next.speakerText || previous.provider !== next.provider) return false;
+    if (previous.text.length + next.text.length > 900) return false;
+    const previousAt = previous.endedAt ?? previous.startedAt ?? previous.createdAt;
+    const nextAt = next.startedAt ?? next.endedAt ?? new Date();
+    const deltaMs = nextAt.getTime() - previousAt.getTime();
+    return deltaMs >= -5000 && deltaMs <= 45_000;
+  }
+
+  private mergeTranscriptText(previous: string, next: string) {
+    const left = previous.trimEnd();
+    const right = next.trim();
+    if (!right || left.endsWith(right)) return left;
+    if (right.startsWith(left)) return right;
+    return `${left}${this.needsTranscriptSpace(left, right) ? ' ' : ''}${right}`;
+  }
+
+  private needsTranscriptSpace(left: string, right: string) {
+    if (!left || !right) return false;
+    if (/[，。！？；：、,.!?;:]$/.test(left)) return false;
+    if (/^[，。！？；：、,.!?;:]/.test(right)) return false;
+    return !/[\u4e00-\u9fff]$/.test(left) && !/^[\u4e00-\u9fff]/.test(right);
   }
 
   private objectValue(value: unknown) {

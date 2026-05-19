@@ -23,7 +23,10 @@ export class EncryptionService {
   }
 
   private key() {
-    const secret = this.config.get<string>('USER_LLM_ENCRYPTION_KEY') || 'meeting-assistant-local-encryption-key';
-    return createHash('sha256').update(secret).digest();
+    const secret = this.config.get<string>('USER_LLM_ENCRYPTION_KEY');
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('USER_LLM_ENCRYPTION_KEY must be configured in production');
+    }
+    return createHash('sha256').update(secret || 'meeting-assistant-local-encryption-key').digest();
   }
 }

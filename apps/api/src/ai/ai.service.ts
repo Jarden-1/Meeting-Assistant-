@@ -32,6 +32,9 @@ export class AiService {
       '事实类问题优先基于当前会议和同议题历史上下文。',
       '头脑风暴类问题可以使用通用知识，但要说明这是建议。',
       '回答要简洁：先直接回答，再给 2-4 个要点，必要时补一个追问。',
+      '只在用户提问时回应，不要假装自己主动发言或已经被会议成员采纳。',
+      '如果问题需要会议事实，优先使用 transcriptText；如果前端实时快照和保存转写重复，以实时快照为准。',
+      'sources 只返回轻量来源标签数组，可选值：current_transcript、preparation、history_actions、history_decisions、history_risks、history_questions、assistant_history、general_knowledge。',
     ].join('\n');
 
     const fallback = {
@@ -45,7 +48,7 @@ export class AiService {
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `请基于以下会议上下文回答用户问题，并返回 JSON：{"answer": string, "mode": string, "sources": array}\n\n${JSON.stringify(context).slice(0, 24000)}`,
+        content: `请基于以下会议上下文回答用户问题，并返回严格 JSON：{"answer": string, "mode": string, "sources": string[]}。sources 只能使用系统提示中列出的轻量来源标签；不要返回 Markdown。\n\n${JSON.stringify(context).slice(0, 24000)}`,
       },
     ]);
 
@@ -59,11 +62,17 @@ export class AiService {
 
   async generateReportDraft(userId: string, context: unknown) {
     const systemPrompt = [
-      '你是会议报告结构化助手。',
+      '你是标准会议纪要结构化助手，风格参考腾讯会议和飞书会议的 AI 会议纪要。',
       '你只生成候选草稿，不能把候选说成正式记录。',
-      '请基于当前会议内容、会前快照和同议题历史，输出严格 JSON。',
+      '请基于当前会议内容、会前快照和同议题历史生成标准会议纪要，不要生成项目战报、营销总结或泛泛建议。',
+      '会议纪要必须以真实会议转写为依据；没有明确讨论或确认的内容不能写成已决事项。',
+      '请输出严格 JSON。',
       '不要输出 Markdown，不要输出 HTML。',
+      'summary.content 应为 3-5 句话的会议摘要。',
+      'discussionChains 用作“议题纪要”：每项包含 topic、facts、opinions、disagreements、decision、openQuestions、sourceText。',
+      'decisions 只放明确达成一致或确认的关键结论；actionItems 只放可执行待办。',
       'ownerText 和 dueDate 可以为空；缺失时把提醒放入 warnings。',
+      '每条关键结论、待办、风险、问题和议题尽量带 sourceText，摘取对应原文依据。',
     ].join('\n');
 
     const fallback = this.fallbackReport(context);
@@ -71,7 +80,17 @@ export class AiService {
       { role: 'system', content: systemPrompt },
       {
         role: 'user',
-        content: `请生成会议报告草稿，结构必须包含 summary、memorySummary、decisions、actionItems、risks、openQuestions、progressUpdates、carryInItems、discussionChains、warnings。\n\n上下文：${JSON.stringify(context).slice(0, 28000)}`,
+        content: `请生成标准会议纪要草稿，结构必须包含 summary、memorySummary、decisions、actionItems、risks、openQuestions、progressUpdates、carryInItems、discussionChains、warnings。\n\n字段要求：
+- summary: {"title":"会议摘要","content":string}
+- discussionChains: 议题纪要数组，每项包含 topic、facts、opinions、disagreements、decision、openQuestions、nextActions、sourceText
+- decisions: 关键结论数组，每项包含 content、rationale、sourceText
+- actionItems: 待办数组，每项包含 description、ownerText、dueDate、priority、riskLevel、importance、urgency、sourceText
+- risks: 风险与问题数组，每项包含 content、level、status、sourceText
+- openQuestions: 遗留问题数组，每项包含 content、status、sourceText
+- carryInItems: 会后跟进建议或下次带入项数组，每项包含 type、content、status
+- warnings: 信息缺失、负责人/截止时间不确定、来源不足等提醒
+
+上下文：${JSON.stringify(context).slice(0, 28000)}`,
       },
     ]);
 
@@ -182,8 +201,11 @@ export class AiService {
   }
 
   private async callChatCompletion(llmConfig: LlmConfig, messages: ChatMessage[], jsonMode: boolean): Promise<string> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 75000);
     const response = await fetch(`${llmConfig.baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
+      signal: controller.signal,
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${llmConfig.apiKey}`,
@@ -193,7 +215,7 @@ export class AiService {
         messages,
         ...(jsonMode ? { response_format: { type: 'json_object' } } : {}),
       }),
-    });
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       throw new Error(`LLM request failed with ${response.status}`);

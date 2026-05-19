@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Bell,
@@ -38,6 +38,7 @@ import {
 import {
   FUNASR_WS_URL,
   api,
+  type AssistantTranscriptSnapshotItem,
   type LlmSettingsResponse,
   type PreparationResponse,
   type ReportDraftResponse,
@@ -106,6 +107,70 @@ type TranscriptItem = {
   text: string
 }
 
+type TranscriptTurn = {
+  id: string
+  speaker: string
+  role: string
+  startTime: string
+  endTime: string
+  lines: TranscriptItem[]
+}
+
+type AssistantChatMessage = {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  sources?: unknown[]
+  pending?: boolean
+}
+
+type ReportGenerationRequest = {
+  sessionId: string
+  meetingContent?: string
+  requestedAt: number
+}
+
+type MinutesTopic = {
+  id: string
+  title: string
+  discussion: string
+  conclusion: string
+  openQuestions: string
+  sourceText: string
+}
+
+type MinutesDecision = {
+  id: string
+  content: string
+  sourceText: string
+}
+
+type MinutesActionItem = {
+  id: string
+  description: string
+  ownerText: string
+  dueDate: string
+  priority: Priority
+  sourceText: string
+}
+
+type MinutesTextItem = {
+  id: string
+  content: string
+  sourceText: string
+}
+
+type MinutesDraft = {
+  summary: string
+  topics: MinutesTopic[]
+  decisions: MinutesDecision[]
+  actionItems: MinutesActionItem[]
+  risks: MinutesTextItem[]
+  openQuestions: MinutesTextItem[]
+  followUps: MinutesTextItem[]
+  warnings: string[]
+}
+
 type RecordingState = 'idle' | 'recording' | 'paused'
 
 type BrowserSpeechRecognitionAlternative = {
@@ -156,6 +221,29 @@ type FunAsrMessage = {
   wav_name?: string
   is_final?: boolean
   timestamp?: string
+  spk_name?: string
+  spk_score?: number
+  speaker?: string | number
+  speaker_id?: string | number
+  spk?: string | number
+  spk_id?: string | number
+  sentence_info?: FunAsrSentence[]
+  sentences?: FunAsrSentence[]
+}
+
+type FunAsrSentence = {
+  text?: string
+  voice_text_str?: string
+  speaker?: string | number
+  speaker_id?: string | number
+  spk?: string | number
+  spk_id?: string | number
+}
+
+type AudioPreprocessState = {
+  previousInput: number
+  previousOutput: number
+  gain: number
 }
 
 type SettingsState = {
@@ -179,41 +267,6 @@ const STANDALONE_THREAD_TITLE = '未归档会议'
 const STANDALONE_THREAD_BACKGROUND = '__standalone_meetings__'
 const NEW_THREAD_OPTION = '__new_thread__'
 
-const initialThreads: Thread[] = [
-  {
-    id: 'thread-q1',
-    title: '2024Q1 战略执行与部门协同议题',
-    summary: '围绕技术底座升级、市场推广联动和跨部门资源倾斜的连续会议。',
-    risk: 3,
-    updatedAt: '2026-05-15 10:30',
-    members: ['张', '李', '王', '+2'],
-  },
-  {
-    id: 'thread-supply',
-    title: '供应链数字化转型第二阶段汇报',
-    summary: '追踪交付周期、私有云部署和客户侧验收节奏。',
-    risk: 5,
-    updatedAt: '2026-05-14 16:20',
-    members: ['赵', '陈', '+1'],
-  },
-  {
-    id: 'thread-product',
-    title: 'Q3 产品战略规划与季度目标对齐',
-    summary: '聚焦用户体验升级、商业化提速和数据驱动决策。',
-    risk: 2,
-    updatedAt: '2026-05-13 09:10',
-    members: ['张', '李', '王', '+4'],
-  },
-  {
-    id: 'thread-api',
-    title: '新 API 集成方案评审',
-    summary: '确认接口边界、认证策略和上线前风险清单。',
-    risk: 1,
-    updatedAt: '2026-05-12 15:45',
-    members: ['刘', '周'],
-  },
-]
-
 const meetings: MeetingRecord[] = [
   {
     id: 'meeting-budget',
@@ -232,87 +285,6 @@ const meetings: MeetingRecord[] = [
     sortAt: '2026-05-10T10:00:00',
     participants: '张三、李四、王五等 6 人',
     todoCount: 3,
-  },
-]
-
-const initialTodos: ActionItem[] = [
-  {
-    id: 'a1',
-    title: '完成 Q4 市场预算分配并提交审核',
-    owner: 'Sarah Jenkins',
-    due: '2026-05-20',
-    priority: 'P0',
-    status: 'pending',
-    importance: 'high',
-    urgency: 'high',
-    threadId: 'thread-q1',
-    meetingId: 'meeting-budget',
-    risk: 'high_risk',
-  },
-  {
-    id: 'a2',
-    title: '起草新 API 集成的技术规范',
-    owner: 'Michael Klein',
-    due: '2026-05-22',
-    priority: 'P1',
-    status: 'in_progress',
-    importance: 'high',
-    urgency: 'low',
-    threadId: 'thread-q1',
-    meetingId: 'meeting-budget',
-    risk: 'at_risk',
-  },
-  {
-    id: 'a3',
-    title: '安排与设计团队同步，审查原型 V2',
-    owner: 'David Chen',
-    due: '2026-05-19',
-    priority: 'P2',
-    status: 'pending',
-    importance: 'low',
-    urgency: 'high',
-    threadId: 'thread-q1',
-    meetingId: 'meeting-budget',
-    risk: 'normal',
-  },
-  {
-    id: 'a4',
-    title: '使用最新指标更新客户演示文稿',
-    owner: 'Anna Lee',
-    due: '2026-05-18',
-    priority: 'P3',
-    status: 'done',
-    importance: 'low',
-    urgency: 'low',
-    threadId: 'thread-product',
-    meetingId: 'meeting-weekly',
-    risk: 'normal',
-  },
-  {
-    id: 'a5',
-    title: '法务合规部门确认新产品复审结果',
-    owner: '王伟',
-    due: '2026-05-21',
-    priority: 'P0',
-    status: 'pending',
-    importance: 'high',
-    urgency: 'high',
-    threadId: 'thread-q1',
-    meetingId: 'meeting-budget',
-    risk: 'high_risk',
-  },
-  {
-    id: 'a6',
-    title: '跨部门资源协调会议安排',
-    owner: '助理小张',
-    due: '2026-05-24',
-    priority: 'P2',
-    status: 'pending',
-    importance: 'low',
-    urgency: 'high',
-    threadId: 'thread-q1',
-    meetingId: 'meeting-weekly',
-    risk: 'at_risk',
   },
 ]
 
@@ -355,34 +327,26 @@ const initialBriefing = {
   questions: ['供应链交付周期延长 15% 的应对方案', '法务合规部门对新产品的复审尚未通过'],
 }
 
-const projectRows = [
-  ['AI 辅助写作功能上线', '完成内部 Beta 测试并修复 P0 Bug', '2026-05-22', '张三', 'P1'],
-  ['新商业模式财务合规审批', '提交完整方案至法务及财务部审核', '2026-05-21', '李四', 'P0'],
-  ['行业峰会物料制作', '完成展台设计定稿及印刷物发包', '2026-05-26', '王五', 'P2'],
-  ['用户体验反馈收集', '回收 1000 份有效样本', '2026-05-20', '赵六', 'P1'],
-]
-
 const priorityTone: Record<Priority, string> = { P0: 'p0', P1: 'p1', P2: 'p2', P3: 'p3' }
 
 function App() {
   const [page, setPage] = useState<Page>('login')
   const [userName, setUserName] = useState('张经理')
   const [authToken, setAuthToken] = useState<string | null>(() => window.localStorage.getItem(AUTH_TOKEN_KEY))
-  const [threads, setThreads] = useState(initialThreads)
-  const [todos, setTodos] = useState(initialTodos)
+  const [threads, setThreads] = useState<Thread[]>([])
+  const [todos, setTodos] = useState<ActionItem[]>([])
   const [transcript, setTranscript] = useState(initialTranscript)
   const [briefing, setBriefing] = useState(initialBriefing)
   const [selectedThreadId, setSelectedThreadId] = useState('')
-  const [threadMeetings, setThreadMeetings] = useState(() => sortMeetings(meetings))
-  const [threadMeetingsByThread, setThreadMeetingsByThread] = useState<Record<string, MeetingRecord[]>>(() => ({
-    [initialThreads[0].id]: sortMeetings(meetings),
-  }))
-  const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([initialThreads[0].id])
+  const [threadMeetings, setThreadMeetings] = useState<MeetingRecord[]>([])
+  const [threadMeetingsByThread, setThreadMeetingsByThread] = useState<Record<string, MeetingRecord[]>>({})
+  const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([])
   const [standaloneMeetings, setStandaloneMeetings] = useState<MeetingRecord[]>([])
   const [selectedMeeting, setSelectedMeeting] = useState(meetings[0])
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
   const [selectedSessionThreadId, setSelectedSessionThreadId] = useState<string | null>(null)
   const [reportDraft, setReportDraft] = useState<ReportDraftResponse | null>(null)
+  const [reportGenerationRequest, setReportGenerationRequest] = useState<ReportGenerationRequest | null>(null)
   const [settingsState, setSettingsState] = useState<SettingsState | null>(null)
   const [modal, setModal] = useState<ModalKind>(null)
   const [meetingDraftThreadId, setMeetingDraftThreadId] = useState('')
@@ -395,9 +359,9 @@ function App() {
   const [filters, setFilters] = useState({ status: 'all', priority: 'all' })
 
   const visibleThreads = threads.filter((thread) => !isStandaloneThread(thread))
-  const activeThread = visibleThreads.find((thread) => thread.id === selectedThreadId) ?? visibleThreads[0] ?? threads[0]
+  const activeThread = visibleThreads.find((thread) => thread.id === selectedThreadId) ?? visibleThreads[0] ?? null
   const filteredTodos = todos.filter((todo) => matchesTodoFilters(todo, filters))
-  const threadTodos = filteredTodos.filter((todo) => todo.threadId === activeThread.id)
+  const threadTodos = activeThread ? filteredTodos.filter((todo) => todo.threadId === activeThread.id) : []
   const meetingTodos = filteredTodos.filter((todo) => todo.meetingId === selectedMeeting.id)
 
   const notify = (message: string) => {
@@ -413,6 +377,50 @@ function App() {
   const openMeetingModal = (threadId = '') => {
     setMeetingDraftThreadId(threadId)
     setModal('new-meeting')
+  }
+
+  const startReportGeneration = (meetingContent?: string) => {
+    if (!selectedSessionId) {
+      notify('当前会议还没有可用的后端会话')
+      return
+    }
+    setReportDraft(null)
+    setReportGenerationRequest({
+      sessionId: selectedSessionId,
+      meetingContent:
+        meetingContent ??
+        transcript
+          .map((line) => `${line.speaker}: ${line.text}`)
+          .filter(Boolean)
+          .join('\n'),
+      requestedAt: Date.now(),
+    })
+    setPage('ai-progress')
+  }
+
+  const finalizeMinutes = async (content: unknown) => {
+    if (!authToken || !selectedSessionId) return
+    try {
+      const session = await api.finalizeSession(authToken, selectedSessionId, content)
+      const meeting = toMeetingRecord(session)
+      const todosResponse = await api.getMyTodos(authToken)
+      setSelectedMeeting(meeting)
+      setReportDraft((draft) => (draft ? { ...draft, status: 'applied' } : draft))
+      setTodos(todosFromMatrixResponse(todosResponse))
+      setStandaloneMeetings((items) => items.map((item) => (item.id === meeting.id ? meeting : item)))
+      setThreadMeetings((items) => items.map((item) => (item.id === meeting.id ? meeting : item)))
+      setThreadMeetingsByThread((current) =>
+        Object.fromEntries(
+          Object.entries(current).map(([threadId, items]) => [
+            threadId,
+            items.map((item) => (item.id === meeting.id ? meeting : item)),
+          ]),
+        ),
+      )
+      notify('会议纪要已确认，待办和后续事项已写入')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '确认会议纪要失败')
+    }
   }
 
   const toggleThreadExpanded = (threadId: string) => {
@@ -465,7 +473,7 @@ function App() {
       const created = await api.createThread(authToken, title, summary)
       const response = await api.listThreads(authToken)
       const mapped = response.items.map(toThread)
-      setThreads(mapped.length > 0 ? mapped : initialThreads)
+      setThreads(mapped)
       setSelectedThreadId(created.id)
       setModal(null)
       notify('议题已创建')
@@ -659,7 +667,7 @@ function App() {
         setUserName(me.displayName)
         setSettingsState(toSettingsState(settings))
         const mappedThreads = threadsResponse.items.map(toThread)
-        setThreads(mappedThreads.length > 0 ? mappedThreads : initialThreads)
+        setThreads(mappedThreads)
         const standaloneThread = mappedThreads.find(isStandaloneThread)
         const visibleLoadedThreads = mappedThreads.filter((thread) => !isStandaloneThread(thread))
         const visibleSessions = await Promise.all(
@@ -684,13 +692,9 @@ function App() {
         }
         setSelectedThreadId((current) => {
           if (visibleLoadedThreads.some((thread) => thread.id === current)) return current
-          return visibleLoadedThreads[0]?.id ?? initialThreads[0]?.id ?? current
+          return visibleLoadedThreads[0]?.id ?? ''
         })
-        const matrix = todosResponse.matrix ?? {}
-        const items = Object.values(matrix).flat().map((item) => toTodo(item))
-        if (items.length > 0) {
-          setTodos(items)
-        }
+        setTodos(todosFromMatrixResponse(todosResponse))
         if (!cancelled) {
           setPage('threads')
         }
@@ -833,11 +837,11 @@ function App() {
             filters={filters}
           />
         )}
-        {page === 'briefing' && (
+        {page === 'briefing' && activeThread && (
           <BriefingPage
             thread={activeThread}
             briefing={briefing}
-            todos={todos.filter((todo) => todo.threadId === activeThread.id)}
+              todos={todos.filter((todo) => todo.threadId === activeThread.id)}
             meetings={threadMeetings}
             setPage={setPage}
             openTodoDrawer={openTodoDrawer}
@@ -850,7 +854,7 @@ function App() {
             openNewMeeting={() => openMeetingModal(activeThread?.id)}
           />
         )}
-        {page === 'thread-todos' && (
+        {page === 'thread-todos' && activeThread && (
           <ThreadTodosPage
             thread={activeThread}
             todos={threadTodos}
@@ -869,17 +873,28 @@ function App() {
             setPage={setPage}
             setTranscript={setTranscript}
             notify={notify}
+            startReportGeneration={startReportGeneration}
+          />
+        )}
+        {page === 'ai-progress' && (
+          <AiProgressPage
+            authToken={authToken}
+            request={reportGenerationRequest}
+            setPage={setPage}
+            notify={notify}
             onReportDraft={setReportDraft}
           />
         )}
-        {page === 'ai-progress' && <AiProgressPage setPage={setPage} />}
         {page === 'overview' && (
           <OverviewPage
+            key={`${selectedMeeting.id}:${reportDraft?.id ?? 'no-draft'}:${reportDraft?.status ?? 'none'}:${transcript.length}`}
             meeting={selectedMeeting}
             activeThread={selectedSessionThreadId ? visibleThreads.find((thread) => thread.id === selectedSessionThreadId) ?? null : null}
             reportDraft={reportDraft}
+            transcript={transcript}
+            startReportGeneration={startReportGeneration}
+            finalizeMinutes={finalizeMinutes}
             setPage={setPage}
-            openDrawer={setDrawer}
             exportReport={() => setModal('export')}
           />
         )}
@@ -933,7 +948,14 @@ function App() {
         saveMeeting={saveMeeting}
         threads={visibleThreads}
         selectedThreadId={meetingDraftThreadId}
-        exportCurrent={() => exportData('meeting-report.json', { selectedMeeting, todos: meetingTodos })}
+        exportCurrent={() =>
+          exportData('meeting-minutes.json', {
+            meeting: selectedMeeting,
+            minutes: toMinutesDraft(reportDraft, selectedMeeting),
+            rawDraft: reportDraft,
+            todos: meetingTodos,
+          })
+        }
       />
       <Drawer
         key={`drawer-${drawer}-${editingTodoId ?? 'new'}-${editingTranscriptId ?? 'none'}`}
@@ -1482,7 +1504,7 @@ function LiveMeetingPage({
   setPage,
   setTranscript,
   notify,
-  onReportDraft,
+  startReportGeneration,
 }: {
   transcript: TranscriptItem[]
   meeting: MeetingRecord
@@ -1491,16 +1513,40 @@ function LiveMeetingPage({
   setPage: (page: Page) => void
   setTranscript: React.Dispatch<React.SetStateAction<TranscriptItem[]>>
   notify: (message: string) => void
-  onReportDraft: (draft: ReportDraftResponse | null) => void
+  startReportGeneration: (meetingContent?: string) => void
 }) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
   const [recordingProvider, setRecordingProvider] = useState<'funasr' | 'browser' | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [interimTranscript, setInterimTranscript] = useState('')
+  const [interimSpeaker, setInterimSpeaker] = useState('Speaker 1')
   const [asrStatus, setAsrStatus] = useState('等待开始')
   const [asrStats, setAsrStats] = useState({ sentKb: 0, messages: 0, micFrames: 0 })
-  const [assistantText, setAssistantText] = useState('您好，我正在旁听会议。您可以随时向我提问，或者让我帮您整理纪要和待办。')
+  const [assistantMessages, setAssistantMessages] = useState<AssistantChatMessage[]>([
+    {
+      id: 'assistant-intro',
+      role: 'assistant',
+      content: '您好，我会在您提问时结合当前会议内容和历史上下文回答。可以点快捷问题，也可以直接输入。',
+      sources: [],
+    },
+  ])
   const [question, setQuestion] = useState('')
+  const [assistantCollapsed, setAssistantCollapsed] = useState(false)
+  const [assistantBusy, setAssistantBusy] = useState(false)
+  const transcriptTurns = useMemo(() => groupTranscriptTurns(transcript), [transcript])
+  const liveTranscriptTurns = useMemo(() => {
+    if (!interimTranscript) return transcriptTurns
+    return groupTranscriptTurns([
+      ...transcript,
+      {
+        id: 'interim-transcript',
+        speaker: interimSpeaker,
+        role: '正在识别',
+        time: formatDuration(elapsedSeconds),
+        text: interimTranscript,
+      },
+    ])
+  }, [elapsedSeconds, interimSpeaker, interimTranscript, transcript, transcriptTurns])
   const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
   const shouldRestartRecognitionRef = useRef(false)
   const funAsrSocketRef = useRef<WebSocket | null>(null)
@@ -1509,6 +1555,8 @@ function LiveMeetingPage({
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const audioProcessorRef = useRef<ScriptProcessorNode | null>(null)
+  const audioMonitorGainRef = useRef<GainNode | null>(null)
+  const audioPreprocessRef = useRef<AudioPreprocessState>({ previousInput: 0, previousOutput: 0, gain: 1 })
   const pcmQueueRef = useRef<Int16Array>(new Int16Array())
   const sentBytesRef = useRef(0)
   const socketMessagesRef = useRef(0)
@@ -1517,6 +1565,7 @@ function LiveMeetingPage({
   const recordingStartedAtRef = useRef<number | null>(null)
   const elapsedBeforeStartRef = useRef(0)
   const recordingStateRef = useRef<RecordingState>('idle')
+  const assistantMessageCounterRef = useRef(0)
 
   const isRecording = recordingState === 'recording'
   const isPaused = recordingState === 'paused'
@@ -1604,7 +1653,7 @@ function LiveMeetingPage({
         }
       }
       if (finalSegments.length > 0) {
-        setTranscript((items) => [...items, ...finalSegments])
+        setTranscript((items) => appendOrMergeTranscript(items, finalSegments))
         void persistTranscript(finalSegments)
       }
       setInterimTranscript(interim)
@@ -1657,6 +1706,7 @@ function LiveMeetingPage({
 
   const stopStreamingAudio = () => {
     audioProcessorRef.current?.disconnect()
+    audioMonitorGainRef.current?.disconnect()
     audioSourceRef.current?.disconnect()
     audioContextRef.current?.close().catch(() => undefined)
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
@@ -1666,6 +1716,7 @@ function LiveMeetingPage({
       window.setTimeout(() => funAsrSocket.close(), 300)
     }
     audioProcessorRef.current = null
+    audioMonitorGainRef.current = null
     audioSourceRef.current = null
     audioContextRef.current = null
     mediaStreamRef.current = null
@@ -1685,34 +1736,46 @@ function LiveMeetingPage({
     }
   }, [])
 
-  const startMicrophoneStream = async (sampleRate: number, onPcm: (pcm: Int16Array) => void) => {
+  const startMicrophoneStream = async (targetSampleRate: number, onPcm: (pcm: Int16Array) => void) => {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('当前浏览器不支持麦克风录音')
     }
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, sampleRate },
+      audio: {
+        channelCount: { ideal: 1 },
+        sampleRate: { ideal: 48000 },
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: true,
+      },
     })
     const audioTracks = stream.getAudioTracks()
     if (audioTracks.length === 0) {
       stream.getTracks().forEach((track) => track.stop())
       throw new Error('没有检测到可用的麦克风输入')
     }
-    const audioContext = new AudioContext({ sampleRate })
+    const audioContext = new AudioContext()
     await audioContext.resume()
     const source = audioContext.createMediaStreamSource(stream)
-    const processor = audioContext.createScriptProcessor(1024, 1, 1)
+    const processor = audioContext.createScriptProcessor(2048, 1, 1)
+    const mutedMonitor = audioContext.createGain()
+    mutedMonitor.gain.value = 0
+    audioPreprocessRef.current = { previousInput: 0, previousOutput: 0, gain: 1 }
     processor.onaudioprocess = (event) => {
       const input = event.inputBuffer.getChannelData(0)
+      const enhanced = enhanceSpeechFrame(input, audioPreprocessRef.current)
       micFramesRef.current += 1
-      onPcm(downsampleToPcm16(input, audioContext.sampleRate, sampleRate))
+      onPcm(downsampleToPcm16(enhanced, audioContext.sampleRate, targetSampleRate))
       paintAsrStats()
     }
     source.connect(processor)
-    processor.connect(audioContext.destination)
+    processor.connect(mutedMonitor)
+    mutedMonitor.connect(audioContext.destination)
     mediaStreamRef.current = stream
     audioContextRef.current = audioContext
     audioSourceRef.current = source
     audioProcessorRef.current = processor
+    audioMonitorGainRef.current = mutedMonitor
   }
 
   const handleFunAsrMessage = (message: FunAsrMessage) => {
@@ -1725,25 +1788,28 @@ function LiveMeetingPage({
     }
     const mode = message.mode ?? ''
     const final = message.is_final === true || mode.includes('offline')
+    const speaker = getFunAsrSpeaker(message)
     if (!final) {
       setInterimTranscript(text)
+      setInterimSpeaker(speaker)
       setAsrStatus('FunASR 正在接收临时识别结果')
       return
     }
     const key = `${message.wav_name ?? 'funasr'}:${message.timestamp ?? text}`
     if (finalizedFunAsrKeysRef.current.has(key)) return
     finalizedFunAsrKeysRef.current.add(key)
-    const segment = {
-      id: `funasr-${Date.now()}-${finalizedFunAsrKeysRef.current.size}`,
-      speaker: 'Speaker 1',
+    const segments = getFunAsrTranscriptParts(message, text).map((part, index) => ({
+      id: `funasr-${Date.now()}-${finalizedFunAsrKeysRef.current.size}-${index}`,
+      speaker: part.speaker,
       role: 'FunASR 实时转写',
       time: formatClock(new Date().toISOString()),
-      text,
-    }
-    setTranscript((items) => [...items, segment])
+      text: part.text,
+    }))
+    setTranscript((items) => appendOrMergeTranscript(items, segments))
     setInterimTranscript('')
-    setAsrStatus('已收到 FunASR 稳定转写结果')
-    void persistProviderTranscript('funasr', [segment])
+    setInterimSpeaker('Speaker 1')
+    setAsrStatus('已收到 FunASR 稳定转写结果，已合并连续发言')
+    void persistProviderTranscript('funasr', segments)
   }
 
   const startFunAsrRecording = async () => {
@@ -1774,6 +1840,7 @@ function LiveMeetingPage({
     })
     funAsrSocketRef.current = socket
     finalizedFunAsrKeysRef.current = new Set()
+    setInterimSpeaker('Speaker 1')
     socket.send(
       JSON.stringify({
         mode: '2pass',
@@ -1862,6 +1929,7 @@ function LiveMeetingPage({
     }
     recordingStartedAtRef.current = null
     setInterimTranscript('')
+    setInterimSpeaker('Speaker 1')
     setAsrStatus('录音已暂停')
     setRecordingState('paused')
   }
@@ -1879,17 +1947,85 @@ function LiveMeetingPage({
     setRecordingState('idle')
   }
 
+  const buildAssistantSnapshot = (): AssistantTranscriptSnapshotItem[] => {
+    const liveItems = interimTranscript
+      ? [
+          ...transcript,
+          {
+            id: 'interim-transcript',
+            speaker: interimSpeaker,
+            role: '正在识别',
+            time: formatDuration(elapsedSeconds),
+            text: interimTranscript,
+          },
+        ]
+      : transcript
+
+    return liveItems
+      .filter((item) => item.text.trim())
+      .slice(-100)
+      .map((item) => ({
+        speakerText: item.speaker,
+        text: item.text,
+        time: item.time,
+        role: item.role,
+      }))
+  }
+
   const ask = async (text: string) => {
+    const trimmed = text.trim()
+    if (!trimmed || assistantBusy) return
     if (!authToken || !sessionId) {
       notify('当前会议还没有可用的后端会话')
       return
     }
+    assistantMessageCounterRef.current += 1
+    const messageIndex = assistantMessageCounterRef.current
+    const userMessage: AssistantChatMessage = {
+      id: `assistant-user-${messageIndex}`,
+      role: 'user',
+      content: trimmed,
+    }
+    const pendingMessage: AssistantChatMessage = {
+      id: `assistant-pending-${messageIndex}`,
+      role: 'assistant',
+      content: '正在结合当前转写和历史上下文思考...',
+      pending: true,
+    }
+    setAssistantCollapsed(false)
+    setAssistantBusy(true)
+    setQuestion('')
+    setAssistantMessages((items) => [...items, userMessage, pendingMessage])
     try {
-      const result = await api.askAssistant(authToken, sessionId, text)
-      setAssistantText(result.answer)
-      setQuestion('')
+      const result = await api.askAssistant(authToken, sessionId, trimmed, buildAssistantSnapshot())
+      setAssistantMessages((items) =>
+        items.map((item) =>
+          item.id === pendingMessage.id
+            ? {
+                ...item,
+                content: result.answer,
+                sources: result.sources,
+                pending: false,
+              }
+            : item,
+        ),
+      )
     } catch (error) {
+      setAssistantMessages((items) =>
+        items.map((item) =>
+          item.id === pendingMessage.id
+            ? {
+                ...item,
+                content: '这次调用没有成功，可以稍后重试或先检查模型配置。',
+                sources: [],
+                pending: false,
+              }
+            : item,
+        ),
+      )
       notify(error instanceof Error ? error.message : '助手调用失败')
+    } finally {
+      setAssistantBusy(false)
     }
   }
 
@@ -1899,20 +2035,12 @@ function LiveMeetingPage({
       setPage('ai-progress')
       return
     }
-    try {
-      setPage('ai-progress')
-      const meetingContent = transcript.map((line) => `${line.speaker}: ${line.text}`).join('\n')
-      const draft = await api.generateReportDraft(authToken, sessionId, meetingContent)
-      onReportDraft(draft)
-      setPage('overview')
-    } catch (error) {
-      notify(error instanceof Error ? error.message : '生成会议综述失败')
-      setPage('overview')
-    }
+    const meetingContent = transcript.map((line) => `${line.speaker}: ${line.text}`).join('\n')
+    startReportGeneration(meetingContent)
   }
 
   return (
-    <div className="live-layout">
+    <div className={`live-layout ${assistantCollapsed ? 'assistant-collapsed' : ''}`}>
       <section className="card live-main">
         <div className="live-top">
           <div>
@@ -1953,66 +2081,167 @@ function LiveMeetingPage({
           {transcript.length === 0 && !interimTranscript && (
             <div className="transcript-empty">等待麦克风输入，识别出的内容会实时出现在这里。</div>
           )}
-          {transcript.map((line, index) => (
-            <TranscriptLine key={line.id} line={line} live={isRecording && index === transcript.length - 1} />
-          ))}
-          {interimTranscript && (
-            <TranscriptLine
-              line={{
-                id: 'interim-transcript',
-                speaker: 'Speaker 1',
-                role: '正在识别',
-                time: formatDuration(elapsedSeconds),
-                text: interimTranscript,
-              }}
-              live
+          {liveTranscriptTurns.map((turn, index) => (
+            <TranscriptTurnBlock
+              key={turn.id}
+              turn={turn}
+              side={index % 2 === 0 ? 'left' : 'right'}
+              live={isRecording && index === liveTranscriptTurns.length - 1}
             />
-          )}
+          ))}
         </div>
       </section>
-      <aside className="card assistant-panel">
-        <div className="assistant-head">
-          <div>
-            <Bot size={19} />
-            <strong>会议 AI 助手</strong>
+      {assistantCollapsed ? (
+        <button className="assistant-fab" type="button" aria-label="展开会议 AI 助手" onClick={() => setAssistantCollapsed(false)}>
+          <Bot size={20} />
+        </button>
+      ) : (
+        <aside className="card assistant-panel">
+          <div className="assistant-head">
+            <div>
+              <Bot size={19} />
+              <strong>会议 AI 助手</strong>
+            </div>
+            <div className="assistant-head-actions">
+              <span>{assistantBusy ? '思考中' : isRecording ? '可随时提问' : isPaused ? '等待继续' : '待开始'}</span>
+              <button type="button" aria-label="收起会议 AI 助手" onClick={() => setAssistantCollapsed(true)}>
+                <X size={16} />
+              </button>
+            </div>
           </div>
-          <span>{isRecording ? '实时分析中' : isPaused ? '等待继续' : '待开始'}</span>
-        </div>
-        <div className="quick-prompts">
-          {['总结刚才张总的发言重点', '提取目前已确定的待办事项', '分析市场部和研发部的核心分歧点'].map((item) => (
-            <button key={item} type="button" onClick={() => void ask(item)}>
-              {item}
+          <div className="quick-prompts">
+            {['总结刚才的发言重点', '提取目前已确定的待办事项', '分析当前讨论的核心分歧'].map((item) => (
+              <button key={item} type="button" disabled={assistantBusy} onClick={() => void ask(item)}>
+                {item}
+              </button>
+            ))}
+          </div>
+          <div className="assistant-thread">
+            {assistantMessages.map((message) => (
+              <article key={message.id} className={`assistant-message ${message.role} ${message.pending ? 'pending' : ''}`}>
+                {message.role === 'assistant' ? <Bot size={18} /> : <MessageSquareText size={18} />}
+                <div>
+                  <p>{message.content}</p>
+                  {message.role === 'assistant' && message.sources && message.sources.length > 0 && (
+                    <div className="assistant-sources">
+                      <span>依据</span>
+                      {message.sources.map((source, index) => (
+                        <Tag key={`${message.id}-source-${index}`} label={assistantSourceLabel(source)} tone="muted" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="ask-box">
+            <input
+              value={question}
+              disabled={assistantBusy}
+              onChange={(event) => setQuestion(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  if (question.trim()) {
+                    void ask(question)
+                  } else {
+                    notify('先输入一个问题')
+                  }
+                }
+              }}
+              placeholder="@助手 总结刚才的分歧"
+            />
+            <button
+              type="button"
+              aria-label="发送"
+              disabled={assistantBusy}
+              onClick={() => {
+                if (question.trim()) {
+                  void ask(question)
+                } else {
+                  notify('先输入一个问题')
+                }
+              }}
+            >
+              <Send size={16} />
             </button>
-          ))}
-        </div>
-        <div className="assistant-message">
-          <Bot size={18} />
-          <p>{assistantText}</p>
-        </div>
-        <div className="ask-box">
-          <input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="@助手 总结刚才的分歧" />
-          <button
-            type="button"
-            aria-label="发送"
-            onClick={() => (question.trim() ? void ask(question) : notify('先输入一个问题'))}
-          >
-            <Send size={16} />
-          </button>
-        </div>
-      </aside>
+          </div>
+        </aside>
+      )}
     </div>
   )
 }
 
-function AiProgressPage({ setPage }: { setPage: (page: Page) => void }) {
-  const [progress, setProgress] = useState(65)
+function AiProgressPage({
+  authToken,
+  request,
+  setPage,
+  notify,
+  onReportDraft,
+}: {
+  authToken: string | null
+  request: ReportGenerationRequest | null
+  setPage: (page: Page) => void
+  notify: (message: string) => void
+  onReportDraft: (draft: ReportDraftResponse | null) => void
+}) {
+  const [progress, setProgress] = useState(request ? 8 : 0)
+  const [stage, setStage] = useState<'idle' | 'generating' | 'completed' | 'failed'>(request ? 'generating' : 'idle')
+  const [message, setMessage] = useState(request ? '正在读取会议转写并生成结构化纪要' : '当前没有正在进行的生成任务')
+  const startedRequestKeyRef = useRef('')
+  const completedRef = useRef(false)
+
+  const completeWithDraft = useCallback(
+    (draft: ReportDraftResponse) => {
+      if (completedRef.current) return
+      completedRef.current = true
+      setProgress(96)
+      setMessage('会议纪要已生成，正在进入编辑确认页')
+      onReportDraft(draft)
+      setStage('completed')
+      window.setTimeout(() => setPage('overview'), 650)
+    },
+    [onReportDraft, setPage],
+  )
 
   useEffect(() => {
+    if (stage !== 'generating') return undefined
     const timer = window.setInterval(() => {
-      setProgress((value) => (value >= 96 ? value : value + 1))
-    }, 650)
+      setProgress((value) => (value >= 88 ? value : value + 3))
+    }, 800)
     return () => window.clearInterval(timer)
-  }, [])
+  }, [stage])
+
+  useEffect(() => {
+    if (!authToken || !request) return
+    const requestKey = `${request.sessionId}:${request.requestedAt}`
+    if (startedRequestKeyRef.current === requestKey) return
+    completedRef.current = false
+    startedRequestKeyRef.current = requestKey
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        setStage('generating')
+        setProgress(14)
+        setMessage('正在请求大模型提炼摘要、议题、结论和待办')
+        const draft = await api.generateReportDraft(authToken, request.sessionId, request.meetingContent)
+        if (cancelled || completedRef.current) return
+        completeWithDraft(draft)
+      } catch (error) {
+        if (cancelled || completedRef.current) return
+        setStage('failed')
+        setProgress(100)
+        setMessage(error instanceof Error ? error.message : '生成会议纪要失败')
+        notify(error instanceof Error ? error.message : '生成会议纪要失败')
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [authToken, completeWithDraft, notify, request])
 
   return (
     <section className="ai-progress-page">
@@ -2021,8 +2250,8 @@ function AiProgressPage({ setPage }: { setPage: (page: Page) => void }) {
         <div className="progress-icon">
           <Sparkles size={42} />
         </div>
-        <h2>会议已结束，AI 正在生成会议报告</h2>
-        <p>正在提炼会议精华、结构化文档与待办清单。</p>
+        <h2>{stage === 'failed' ? '会议纪要生成失败' : stage === 'completed' ? '会议纪要已生成' : 'AI 正在生成会议纪要'}</h2>
+        <p>{message}</p>
         <div className="progress-meta">
           <span>分析进度</span>
           <strong>{progress}%</strong>
@@ -2030,12 +2259,16 @@ function AiProgressPage({ setPage }: { setPage: (page: Page) => void }) {
         <div className="progress-track">
           <span style={{ width: `${progress}%` }} />
         </div>
-        <ProgressStep done label="提取核心观点" state="已完成" />
-        <ProgressStep active label="整理待办事项" state="进行中" />
-        <ProgressStep label="润色会议纪要" state="等待中" />
-        <button className="button primary wide" type="button" onClick={() => setPage('overview')}>
-          查看会议综述
-        </button>
+        <ProgressStep done={stage === 'generating' || stage === 'completed'} label="读取会议上下文" state={request ? '已开始' : '等待任务'} />
+        <ProgressStep active={stage === 'generating'} done={stage === 'completed'} label="生成标准会议纪要" state={stage === 'generating' ? '进行中' : stage === 'completed' ? '已完成' : '等待中'} />
+        <ProgressStep active={stage === 'completed'} label="进入编辑确认" state={stage === 'completed' ? '正在跳转' : '等待中'} />
+        {stage === 'failed' && (
+          <div className="progress-actions">
+            <button className="button secondary wide" type="button" onClick={() => setPage('overview')}>
+              返回会议综述
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )
@@ -2045,22 +2278,62 @@ function OverviewPage({
   meeting,
   activeThread,
   reportDraft,
+  transcript,
+  startReportGeneration,
+  finalizeMinutes,
   setPage,
-  openDrawer,
   exportReport,
 }: {
   meeting: MeetingRecord
   activeThread: Thread | null
   reportDraft: ReportDraftResponse | null
+  transcript: TranscriptItem[]
+  startReportGeneration: (meetingContent?: string) => void
+  finalizeMinutes: (content: unknown) => Promise<void>
   setPage: (page: Page) => void
-  openDrawer: (kind: DrawerKind) => void
   exportReport: () => void
 }) {
-  const summary = reportDraft?.summary?.content || '会议报告尚未生成或仍在整理中。'
-  const decisionTags = (reportDraft?.decisions ?? [])
-    .map((item) => (typeof item.content === 'string' ? item.content : ''))
-    .filter(Boolean)
-    .slice(0, 3)
+  const normalizedDraft = useMemo(() => toMinutesDraft(reportDraft, meeting), [meeting, reportDraft])
+  const [draft, setDraft] = useState(normalizedDraft)
+  const [saving, setSaving] = useState(false)
+  const isApplied = reportDraft?.status === 'applied'
+
+  const updateTopic = (id: string, patch: Partial<MinutesTopic>) => {
+    setDraft((current) => ({
+      ...current,
+      topics: current.topics.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }))
+  }
+
+  const updateDecision = (id: string, patch: Partial<MinutesDecision>) => {
+    setDraft((current) => ({
+      ...current,
+      decisions: current.decisions.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }))
+  }
+
+  const updateActionItem = (id: string, patch: Partial<MinutesActionItem>) => {
+    setDraft((current) => ({
+      ...current,
+      actionItems: current.actionItems.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }))
+  }
+
+  const updateTextItem = (kind: 'risks' | 'openQuestions' | 'followUps', id: string, patch: Partial<MinutesTextItem>) => {
+    setDraft((current) => ({
+      ...current,
+      [kind]: current[kind].map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }))
+  }
+
+  const confirmMinutes = async () => {
+    setSaving(true)
+    await finalizeMinutes(toReportContent(draft))
+    setSaving(false)
+  }
+
+  const meetingContent = transcript.map((line) => `${line.speaker}: ${line.text}`).join('\n')
+
   return (
     <div className="page-stack report-page">
       <Breadcrumb onBack={() => setPage(activeThread ? 'briefing' : 'threads')} label={activeThread ? `我的会议 / ${activeThread.title} / 返回` : '我的会议 / 返回'} />
@@ -2070,43 +2343,266 @@ function OverviewPage({
         title={meeting.title}
         description={`参与人：${meeting.participants}`}
         actions={
-          <button className="button secondary" type="button" onClick={() => openDrawer('meeting')}>
-            <Edit3 size={16} />
-            编辑
-          </button>
+          <>
+            {!reportDraft && (
+              <button className="button primary" type="button" onClick={() => startReportGeneration(meetingContent)}>
+                <Sparkles size={16} />
+                生成会议纪要
+              </button>
+            )}
+            {reportDraft && !isApplied && (
+              <button className="button primary" type="button" onClick={() => void confirmMinutes()} disabled={saving}>
+                <CheckCircle2 size={16} />
+                {saving ? '确认中' : '确认会议纪要'}
+              </button>
+            )}
+            <button className="button secondary" type="button" onClick={exportReport}>
+              <Download size={16} />
+              导出
+            </button>
+          </>
         }
       />
-      <section className="card strategy-card">
-        <div className="section-heading">
-          <Sparkles size={20} />
+      {!reportDraft ? (
+        <section className="card minutes-empty">
+          <Sparkles size={26} />
           <div>
-            <h3>AI 核心策略总结</h3>
-            <span>基于当前会议内容和会前快照生成</span>
+            <h3>会议纪要尚未生成</h3>
+            <p>将基于当前会议转写生成标准会议纪要草稿，生成完成后可以逐项编辑和确认。</p>
           </div>
-        </div>
-        <blockquote>{summary}</blockquote>
-        <div className="keyword-row">
-          {(decisionTags.length > 0 ? decisionTags : ['等待会议结论', '请确认草稿', '可继续编辑']).map((tag, index) => (
-            <Tag key={tag} label={tag} tone={index === 0 ? 'todo' : index === 1 ? 'warning' : 'done'} />
-          ))}
-        </div>
-      </section>
-      <div className="project-grid">
-        <ProjectCard icon={<LayoutDashboard size={20} />} title="产品功能优化" tag="P1" text="针对核心工作流进行深度重构，减少用户操作层级。优先解决 Q2 遗留的 3 个高优体验缺陷。" />
-        <ProjectCard icon={<ShieldCheck size={20} />} title="商业模式设计" tag="P0" tone="p0" text="探索基于用量计费的新型订阅模式，需要解决与现有按座席收费模式的冲突。" />
-        <ProjectCard icon={<Target size={20} />} title="市场推广策略" tag="P2" tone="p2" text="行业峰会赞助和产品体验官招募已启动，但预算审批延迟导致宣发物料进度滞后。" />
-      </div>
-      <section className="card table-card">
-        <div className="table-head">
-          <h3>项目跟进进度表</h3>
-          <button className="button secondary" type="button" onClick={exportReport}>
-            <Download size={16} />
-            导出
+          <button className="button primary" type="button" onClick={() => startReportGeneration(meetingContent)}>
+            <Sparkles size={16} />
+            生成会议纪要
           </button>
-        </div>
-        <DataTable columns={['项目名称', '关键里程碑', '截止日期', '负责人', '优先级']} rows={projectRows} statusIndex={4} />
-      </section>
+        </section>
+      ) : (
+        <>
+          <section className="card minutes-status-card">
+            <div>
+              <span className="eyebrow">Meeting Minutes</span>
+              <h3>{isApplied ? '已确认会议纪要' : 'AI 会议纪要草稿'}</h3>
+              <p>{isApplied ? '这份纪要已写入正式会议记录。' : '请检查并修改 AI 生成内容，确认后会写入正式记录和待办系统。'}</p>
+            </div>
+            <Tag label={isApplied ? '已确认' : '待确认'} tone={isApplied ? 'done' : 'warning'} />
+          </section>
+
+          <section className="card minutes-card">
+            <MinutesSectionTitle icon={<MessageSquareText size={19} />} title="会议摘要" description="由大模型基于真实会议内容总结，可直接修改。" />
+            <textarea
+              className="minutes-summary-input"
+              value={draft.summary}
+              onChange={(event) => setDraft((current) => ({ ...current, summary: event.target.value }))}
+              disabled={isApplied}
+            />
+          </section>
+
+          <section className="card minutes-card">
+            <MinutesSectionTitle icon={<CalendarDays size={19} />} title="会议基本信息" description="基础信息来自当前会议记录。" />
+            <div className="minutes-info-grid">
+              <ReadonlyInfo label="会议主题" value={meeting.title} />
+              <ReadonlyInfo label="会议时间" value={`${meeting.date} ${meeting.time}`} />
+              <ReadonlyInfo label="参与人" value={meeting.participants} />
+              <ReadonlyInfo label="纪要状态" value={isApplied ? '已确认' : '草稿待确认'} />
+            </div>
+          </section>
+
+          <section className="card minutes-card">
+            <MinutesSectionTitle icon={<ClipboardList size={19} />} title="议题纪要" description="按讨论主题组织，每个议题包含讨论要点、结论和未定事项。" />
+            <div className="minutes-list">
+              {draft.topics.map((topic, index) => (
+                <div className="minutes-topic" key={topic.id}>
+                  <div className="minutes-item-head">
+                    <span>议题 {index + 1}</span>
+                    {!isApplied && (
+                      <button className="ghost-icon" type="button" aria-label="删除议题" onClick={() => setDraft((current) => ({ ...current, topics: current.topics.filter((item) => item.id !== topic.id) }))}>
+                        <Trash2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                  <input value={topic.title} disabled={isApplied} onChange={(event) => updateTopic(topic.id, { title: event.target.value })} />
+                  <label>
+                    讨论要点
+                    <textarea value={topic.discussion} disabled={isApplied} onChange={(event) => updateTopic(topic.id, { discussion: event.target.value })} />
+                  </label>
+                  <label>
+                    结论
+                    <textarea value={topic.conclusion} disabled={isApplied} onChange={(event) => updateTopic(topic.id, { conclusion: event.target.value })} />
+                  </label>
+                  <label>
+                    未定事项
+                    <textarea value={topic.openQuestions} disabled={isApplied} onChange={(event) => updateTopic(topic.id, { openQuestions: event.target.value })} />
+                  </label>
+                  <SourceDisclosure sourceText={topic.sourceText} />
+                </div>
+              ))}
+              {!isApplied && (
+                <button className="button secondary" type="button" onClick={() => setDraft((current) => ({ ...current, topics: [...current.topics, emptyTopic()] }))}>
+                  <Plus size={16} />
+                  添加议题
+                </button>
+              )}
+            </div>
+          </section>
+
+          <EditableTextSection
+            title="关键结论"
+            description="只记录已经明确达成一致或确认的结论。"
+            items={draft.decisions}
+            disabled={isApplied}
+            onAdd={() => setDraft((current) => ({ ...current, decisions: [...current.decisions, emptyDecision()] }))}
+            onRemove={(id) => setDraft((current) => ({ ...current, decisions: current.decisions.filter((item) => item.id !== id) }))}
+            onChange={updateDecision}
+          />
+
+          <section className="card minutes-card">
+            <MinutesSectionTitle icon={<CheckCircle2 size={19} />} title="待办事项" description="确认后会写入会议待办。" />
+            <div className="minutes-action-list">
+              {draft.actionItems.map((item) => (
+                <div className="minutes-action-row" key={item.id}>
+                  <input value={item.description} disabled={isApplied} onChange={(event) => updateActionItem(item.id, { description: event.target.value })} placeholder="待办事项" />
+                  <input value={item.ownerText} disabled={isApplied} onChange={(event) => updateActionItem(item.id, { ownerText: event.target.value })} placeholder="负责人" />
+                  <input value={item.dueDate} disabled={isApplied} onChange={(event) => updateActionItem(item.id, { dueDate: event.target.value })} placeholder="截止时间" />
+                  <select value={item.priority} disabled={isApplied} onChange={(event) => updateActionItem(item.id, { priority: normalizePriority(event.target.value) })}>
+                    <option value="P0">P0</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                  </select>
+                  {!isApplied && (
+                    <button className="ghost-icon" type="button" aria-label="删除待办" onClick={() => setDraft((current) => ({ ...current, actionItems: current.actionItems.filter((todo) => todo.id !== item.id) }))}>
+                      <Trash2 size={15} />
+                    </button>
+                  )}
+                  <SourceDisclosure sourceText={item.sourceText} />
+                </div>
+              ))}
+              {!isApplied && (
+                <button className="button secondary" type="button" onClick={() => setDraft((current) => ({ ...current, actionItems: [...current.actionItems, emptyActionItem()] }))}>
+                  <Plus size={16} />
+                  添加待办
+                </button>
+              )}
+            </div>
+          </section>
+
+          <EditableTextSection
+            title="风险与问题"
+            description="记录会后仍可能影响推进的风险、阻塞和未解决问题。"
+            items={[...draft.risks, ...draft.openQuestions]}
+            disabled={isApplied}
+            onAdd={() => setDraft((current) => ({ ...current, openQuestions: [...current.openQuestions, emptyTextItem()] }))}
+            onRemove={(id) => setDraft((current) => ({ ...current, risks: current.risks.filter((item) => item.id !== id), openQuestions: current.openQuestions.filter((item) => item.id !== id) }))}
+            onChange={(id, patch) => {
+              const riskExists = draft.risks.some((item) => item.id === id)
+              updateTextItem(riskExists ? 'risks' : 'openQuestions', id, patch)
+            }}
+          />
+
+          <EditableTextSection
+            title="会后跟进建议"
+            description="下次会议或会后沟通需要继续确认的事项。"
+            items={draft.followUps}
+            disabled={isApplied}
+            onAdd={() => setDraft((current) => ({ ...current, followUps: [...current.followUps, emptyTextItem()] }))}
+            onRemove={(id) => setDraft((current) => ({ ...current, followUps: current.followUps.filter((item) => item.id !== id) }))}
+            onChange={(id, patch) => updateTextItem('followUps', id, patch)}
+          />
+
+          {draft.warnings.length > 0 && (
+            <section className="card minutes-card warning-card">
+              <MinutesSectionTitle icon={<ShieldCheck size={19} />} title="需要人工确认" description="模型认为这些信息可能缺失或不确定。" />
+              <ul>
+                {draft.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
+      )}
     </div>
+  )
+}
+
+function MinutesSectionTitle({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+  return (
+    <div className="section-heading minutes-heading">
+      {icon}
+      <div>
+        <h3>{title}</h3>
+        <span>{description}</span>
+      </div>
+    </div>
+  )
+}
+
+function ReadonlyInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="minutes-info-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  )
+}
+
+function SourceDisclosure({ sourceText }: { sourceText: string }) {
+  const [open, setOpen] = useState(false)
+  if (!sourceText.trim()) return null
+  return (
+    <div className="source-disclosure">
+      <button type="button" onClick={() => setOpen((value) => !value)}>
+        <ChevronDown size={14} className={open ? 'open' : ''} />
+        {open ? '收起依据' : '查看依据'}
+      </button>
+      {open && <blockquote>{sourceText}</blockquote>}
+    </div>
+  )
+}
+
+function EditableTextSection({
+  title,
+  description,
+  items,
+  disabled,
+  onAdd,
+  onRemove,
+  onChange,
+}: {
+  title: string
+  description: string
+  items: Array<{ id: string; content: string; sourceText: string }>
+  disabled: boolean
+  onAdd: () => void
+  onRemove: (id: string) => void
+  onChange: (id: string, patch: { content?: string; sourceText?: string }) => void
+}) {
+  return (
+    <section className="card minutes-card">
+      <MinutesSectionTitle icon={<Check size={19} />} title={title} description={description} />
+      <div className="minutes-list compact">
+        {items.length === 0 && <p className="minutes-muted">暂无内容，可根据实际会议补充。</p>}
+        {items.map((item, index) => (
+          <div className="minutes-text-item" key={item.id}>
+            <div className="minutes-item-head">
+              <span>{index + 1}</span>
+              {!disabled && (
+                <button className="ghost-icon" type="button" aria-label={`删除${title}`} onClick={() => onRemove(item.id)}>
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
+            <textarea value={item.content} disabled={disabled} onChange={(event) => onChange(item.id, { content: event.target.value })} />
+            <SourceDisclosure sourceText={item.sourceText} />
+          </div>
+        ))}
+        {!disabled && (
+          <button className="button secondary" type="button" onClick={onAdd}>
+            <Plus size={16} />
+            添加{title}
+          </button>
+        )}
+      </div>
+    </section>
   )
 }
 
@@ -2123,6 +2619,7 @@ function TranscriptPage({
 }) {
   const [keyword, setKeyword] = useState('')
   const visible = transcript.filter((line) => `${line.speaker}${line.text}`.includes(keyword.trim()))
+  const visibleTurns = groupTranscriptTurns(visible)
 
   return (
     <div className="page-stack">
@@ -2145,8 +2642,14 @@ function TranscriptPage({
         }
       />
       <section className="card transcript-card">
-        {visible.map((line) => (
-          <TranscriptLine key={line.id} line={line} editable onEdit={() => openTranscript(line.id)} />
+        {visibleTurns.map((turn, index) => (
+          <TranscriptTurnBlock
+            key={turn.id}
+            turn={turn}
+            side={index % 2 === 0 ? 'left' : 'right'}
+            editable
+            onEdit={openTranscript}
+          />
         ))}
       </section>
     </div>
@@ -2933,34 +3436,43 @@ function MiniMeeting({ meeting, onClick }: { meeting: MeetingRecord; onClick: ()
   )
 }
 
-function TranscriptLine({
-  line,
+function TranscriptTurnBlock({
+  turn,
+  side = 'left',
   live,
   editable,
   onEdit,
 }: {
-  line: TranscriptItem
+  turn: TranscriptTurn
+  side?: 'left' | 'right'
   live?: boolean
   editable?: boolean
-  onEdit?: () => void
+  onEdit?: (id: string) => void
 }) {
+  const timeLabel = turn.startTime === turn.endTime ? turn.startTime : `${turn.startTime} - ${turn.endTime}`
   return (
-    <article className={`transcript-line ${live ? 'live' : ''}`}>
-      <div className="speaker-avatar">{line.speaker.slice(0, 1)}</div>
-      <div>
+    <article className={`transcript-turn ${side} ${live ? 'live' : ''}`}>
+      <div className="speaker-avatar">{turn.speaker.slice(0, 1)}</div>
+      <div className="transcript-turn-body">
         <div className="speaker-meta">
-          <strong>{line.speaker}</strong>
-          <span>{line.role}</span>
-          <time>{line.time}</time>
+          <strong>{turn.speaker}</strong>
+          <span>{turn.role}</span>
+          <time>{timeLabel}</time>
           {live && <Tag label="实时" tone="todo" />}
         </div>
-        <p>{line.text}</p>
+        <div className="transcript-paragraphs">
+          {turn.lines.map((line) => (
+            <p key={line.id}>
+              {line.text}
+              {editable && (
+                <button className="inline-edit" type="button" aria-label="编辑转写片段" onClick={() => onEdit?.(line.id)}>
+                  <Edit3 size={13} />
+                </button>
+              )}
+            </p>
+          ))}
+        </div>
       </div>
-      {editable && (
-        <button className="ghost-icon" type="button" aria-label="编辑转写片段" onClick={onEdit}>
-          <Edit3 size={15} />
-        </button>
-      )}
     </article>
   )
 }
@@ -2971,41 +3483,6 @@ function ProgressStep({ label, state, done, active }: { label: string; state: st
       {done ? <CheckCircle2 size={18} /> : active ? <RefreshCw size={18} /> : <Circle size={18} />}
       <span>{label}</span>
       <small>{state}</small>
-    </div>
-  )
-}
-
-function ProjectCard({ icon, title, tag, text, tone }: { icon: React.ReactNode; title: string; tag: Priority; text: string; tone?: string }) {
-  return (
-    <section className="card project-card">
-      <div className="project-head">
-        <i>{icon}</i>
-        <Tag label={tag} tone={tone ?? priorityTone[tag]} />
-      </div>
-      <h3>{title}</h3>
-      <p>{text}</p>
-      <small>负责人：张三 · 优先级：{tag}</small>
-    </section>
-  )
-}
-
-function DataTable({ columns, rows, statusIndex }: { columns: string[]; rows: string[][]; statusIndex?: number }) {
-  return (
-    <div className="data-table">
-      <div className="data-row data-labels">
-        {columns.map((column) => (
-          <span key={column}>{column}</span>
-        ))}
-      </div>
-      {rows.map((row) => (
-        <div className="data-row" key={row.join('-')}>
-          {row.map((cell, index) => (
-            <span key={`${cell}-${index}`}>
-              {index === statusIndex ? <Tag label={cell} tone={priorityTone[cell as Priority] ?? 'muted'} /> : cell}
-            </span>
-          ))}
-        </div>
-      ))}
     </div>
   )
 }
@@ -3217,6 +3694,184 @@ function toTodo(item: Record<string, unknown>): ActionItem {
   }
 }
 
+function todosFromMatrixResponse(response: { matrix: Record<string, Array<Record<string, unknown>>> }) {
+  return Object.values(response.matrix ?? {}).flat().map((item) => toTodo(item))
+}
+
+function toMinutesDraft(reportDraft: ReportDraftResponse | null, meeting: MeetingRecord): MinutesDraft {
+  if (!reportDraft) {
+    return {
+      summary: '',
+      topics: [],
+      decisions: [],
+      actionItems: [],
+      risks: [],
+      openQuestions: [],
+      followUps: [],
+      warnings: [],
+    }
+  }
+
+  const topics = arrayValue(reportDraft.discussionChains).map((item, index) => {
+    const record = recordValue(item)
+    const facts = arrayValue(record.facts).map(readableItem).filter(Boolean)
+    const opinions = arrayValue(record.opinions).map(readableItem).filter(Boolean)
+    const disagreements = arrayValue(record.disagreements).map(readableItem).filter(Boolean)
+    const discussion = [
+      stringValue(record.summary) || stringValue(record.discussion) || stringValue(record.content),
+      ...facts.map((value) => `事实：${value}`),
+      ...opinions.map((value) => `观点：${value}`),
+      ...disagreements.map((value) => `分歧：${value}`),
+    ]
+      .filter(Boolean)
+      .join('\n')
+    return {
+      id: stringValue(record.id) || `topic-${index}`,
+      title: stringValue(record.topic) || stringValue(record.title) || `议题 ${index + 1}`,
+      discussion,
+      conclusion: stringValue(record.decision) || stringValue(record.conclusion),
+      openQuestions: arrayValue(record.openQuestions).map(readableItem).filter(Boolean).join('\n'),
+      sourceText: stringValue(record.sourceText),
+    }
+  })
+
+  return {
+    summary: reportDraft.summary?.content || stringValue(reportDraft.summary) || `${meeting.title} 的会议纪要草稿。`,
+    topics,
+    decisions: arrayValue(reportDraft.decisions).map((item, index) => {
+      const record = recordValue(item)
+      return {
+        id: stringValue(record.id) || `decision-${index}`,
+        content: stringValue(record.content) || readableItem(item),
+        sourceText: stringValue(record.sourceText),
+      }
+    }),
+    actionItems: arrayValue(reportDraft.actionItems).map((item, index) => {
+      const record = recordValue(item)
+      return {
+        id: stringValue(record.id) || `action-${index}`,
+        description: stringValue(record.description) || stringValue(record.content) || readableItem(item),
+        ownerText: stringValue(record.ownerText) || stringValue(record.owner),
+        dueDate: stringValue(record.dueDate) || stringValue(record.due),
+        priority: normalizePriority(stringValue(record.priority)),
+        sourceText: stringValue(record.sourceText),
+      }
+    }),
+    risks: arrayValue(reportDraft.risks).map((item, index) => {
+      const record = recordValue(item)
+      return {
+        id: stringValue(record.id) || `risk-${index}`,
+        content: stringValue(record.content) || readableItem(item),
+        sourceText: stringValue(record.sourceText),
+      }
+    }),
+    openQuestions: arrayValue(reportDraft.openQuestions).map((item, index) => {
+      const record = recordValue(item)
+      return {
+        id: stringValue(record.id) || `question-${index}`,
+        content: stringValue(record.content) || readableItem(item),
+        sourceText: stringValue(record.sourceText),
+      }
+    }),
+    followUps: arrayValue(reportDraft.carryInItems).map((item, index) => {
+      const record = recordValue(item)
+      return {
+        id: stringValue(record.id) || `follow-${index}`,
+        content: stringValue(record.content) || readableItem(item),
+        sourceText: stringValue(record.sourceText),
+      }
+    }),
+    warnings: arrayValue(reportDraft.warnings).map(readableItem).filter(Boolean),
+  }
+}
+
+function toReportContent(draft: MinutesDraft) {
+  return {
+    summary: { title: '会议摘要', content: draft.summary.trim() },
+    memorySummary: draft.summary.trim().slice(0, 500),
+    decisions: draft.decisions
+      .filter((item) => item.content.trim())
+      .map((item) => ({ content: item.content.trim(), sourceText: item.sourceText.trim() })),
+    actionItems: draft.actionItems
+      .filter((item) => item.description.trim())
+      .map((item) => ({
+        description: item.description.trim(),
+        ownerText: item.ownerText.trim(),
+        dueDate: item.dueDate.trim(),
+        priority: item.priority.toLowerCase(),
+        status: 'pending',
+        riskLevel: 'none',
+        importance: item.priority === 'P0' || item.priority === 'P1' ? 'high' : 'low',
+        urgency: item.priority === 'P0' ? 'high' : 'low',
+        sourceText: item.sourceText.trim(),
+      })),
+    risks: draft.risks
+      .filter((item) => item.content.trim())
+      .map((item) => ({ content: item.content.trim(), level: 'medium', status: 'active', sourceText: item.sourceText.trim() })),
+    openQuestions: draft.openQuestions
+      .filter((item) => item.content.trim())
+      .map((item) => ({ content: item.content.trim(), status: 'open', sourceText: item.sourceText.trim() })),
+    carryInItems: draft.followUps
+      .filter((item) => item.content.trim())
+      .map((item) => ({ type: 'next_meeting', content: item.content.trim(), status: 'active' })),
+    discussionChains: draft.topics
+      .filter((item) => item.title.trim() || item.discussion.trim() || item.conclusion.trim())
+      .map((item) => ({
+        topic: item.title.trim() || '未命名议题',
+        facts: splitLines(item.discussion),
+        opinions: [],
+        disagreements: [],
+        decision: item.conclusion.trim(),
+        openQuestions: splitLines(item.openQuestions),
+        nextActions: [],
+        sourceText: item.sourceText.trim(),
+      })),
+    progressUpdates: [],
+    warnings: draft.warnings,
+  }
+}
+
+function emptyTopic(): MinutesTopic {
+  return { id: uniqueUiId('topic'), title: '', discussion: '', conclusion: '', openQuestions: '', sourceText: '' }
+}
+
+function emptyDecision(): MinutesDecision {
+  return { id: uniqueUiId('decision'), content: '', sourceText: '' }
+}
+
+function emptyActionItem(): MinutesActionItem {
+  return { id: uniqueUiId('action'), description: '', ownerText: '', dueDate: '', priority: 'P2', sourceText: '' }
+}
+
+function emptyTextItem(): MinutesTextItem {
+  return { id: uniqueUiId('text'), content: '', sourceText: '' }
+}
+
+function uniqueUiId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function arrayValue(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+function readableItem(value: unknown): string {
+  if (typeof value === 'string') return value
+  const record = recordValue(value)
+  return stringValue(record.content) || stringValue(record.description) || stringValue(record.title) || stringValue(record.topic)
+}
+
+function splitLines(value: string) {
+  return value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+}
+
 function mergeTodos(current: ActionItem[], incoming: ActionItem[]) {
   const byId = new Map(current.map((item) => [item.id, item]))
   incoming.forEach((item) => {
@@ -3264,6 +3919,144 @@ function normalizeRisk(value: string): ActionItem['risk'] {
   return 'normal'
 }
 
+function assistantSourceLabel(source: unknown) {
+  const raw =
+    typeof source === 'string'
+      ? source
+      : source && typeof source === 'object'
+        ? stringValue((source as Record<string, unknown>).type) || stringValue((source as Record<string, unknown>).label)
+        : ''
+  const labels: Record<string, string> = {
+    current_transcript: '当前转写',
+    live_transcript: '实时转写',
+    saved_transcript: '已保存转写',
+    preparation: '会前准备',
+    history_actions: '历史待办',
+    history_decisions: '历史决策',
+    history_risks: '历史风险',
+    history_questions: '遗留问题',
+    assistant_history: '最近问答',
+    general_knowledge: '通用知识',
+  }
+  return labels[raw] ?? (raw || '会议上下文')
+}
+
+function groupTranscriptTurns(items: TranscriptItem[]) {
+  return items.reduce<TranscriptTurn[]>((turns, line) => {
+    const previous = turns[turns.length - 1]
+    const shouldJoin =
+      previous &&
+      previous.speaker === line.speaker &&
+      previous.role === line.role &&
+      isNearbyClock(previous.endTime, line.time, 75)
+
+    if (!shouldJoin) {
+      return [
+        ...turns,
+        {
+          id: `turn-${line.id}`,
+          speaker: line.speaker,
+          role: line.role,
+          startTime: line.time,
+          endTime: line.time,
+          lines: [line],
+        },
+      ]
+    }
+
+    return [
+      ...turns.slice(0, -1),
+      {
+        ...previous,
+        endTime: line.time,
+        lines: [...previous.lines, line],
+      },
+    ]
+  }, [])
+}
+
+function isNearbyClock(previous: string, next: string, maxSeconds: number) {
+  const previousSeconds = clockToSeconds(previous)
+  const nextSeconds = clockToSeconds(next)
+  if (previousSeconds === null || nextSeconds === null) return true
+  const delta = nextSeconds - previousSeconds
+  return delta >= 0 && delta <= maxSeconds
+}
+
+function appendOrMergeTranscript(items: TranscriptItem[], incoming: TranscriptItem[]) {
+  return incoming.reduce((current, segment) => {
+    if (!segment.text.trim()) return current
+    const previous = current[current.length - 1]
+    if (!previous || !canMergeTranscript(previous, segment)) return [...current, segment]
+    const mergedText = mergeTranscriptText(previous.text, segment.text)
+    if (mergedText === previous.text) return current
+    return [...current.slice(0, -1), { ...previous, text: mergedText, time: segment.time }]
+  }, items)
+}
+
+function canMergeTranscript(previous: TranscriptItem, next: TranscriptItem) {
+  if (previous.speaker !== next.speaker || previous.role !== next.role) return false
+  if (previous.text.length + next.text.length > 900) return false
+  const previousSeconds = clockToSeconds(previous.time)
+  const nextSeconds = clockToSeconds(next.time)
+  if (previousSeconds === null || nextSeconds === null) return true
+  const delta = nextSeconds - previousSeconds
+  return delta >= 0 && delta <= 45
+}
+
+function mergeTranscriptText(previous: string, next: string) {
+  const left = previous.trimEnd()
+  const right = next.trim()
+  if (!right || left.endsWith(right)) return left
+  if (right.startsWith(left)) return right
+  return `${left}${needsTranscriptSpace(left, right) ? ' ' : ''}${right}`
+}
+
+function needsTranscriptSpace(left: string, right: string) {
+  if (!left || !right) return false
+  if (/[，。！？；：、,.!?;:]$/.test(left)) return false
+  if (/^[，。！？；：、,.!?;:]/.test(right)) return false
+  return !/[\u4e00-\u9fff]$/.test(left) && !/^[\u4e00-\u9fff]/.test(right)
+}
+
+function clockToSeconds(value: string) {
+  const parts = value.split(':').map((part) => Number(part))
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null
+  return parts[0] * 3600 + parts[1] * 60 + parts[2]
+}
+
+function getFunAsrTranscriptParts(message: FunAsrMessage, fallbackText: string) {
+  const sentenceParts = (message.sentence_info ?? message.sentences ?? [])
+    .map((sentence) => ({
+      speaker: resolveSpeakerLabel(sentence.speaker, sentence.speaker_id, sentence.spk, sentence.spk_id, getFunAsrSpeaker(message)),
+      text: stringFromUnknown(sentence.text) || stringFromUnknown(sentence.voice_text_str),
+    }))
+    .filter((part) => part.text)
+
+  const parts = sentenceParts.length ? sentenceParts : [{ speaker: getFunAsrSpeaker(message), text: fallbackText }]
+  return parts.reduce<Array<{ speaker: string; text: string }>>((merged, part) => {
+    const previous = merged[merged.length - 1]
+    if (!previous || previous.speaker !== part.speaker) return [...merged, part]
+    return [...merged.slice(0, -1), { ...previous, text: mergeTranscriptText(previous.text, part.text) }]
+  }, [])
+}
+
+function getFunAsrSpeaker(message: FunAsrMessage) {
+  if (message.spk_name && message.spk_name !== 'unknown' && (message.spk_score ?? 0) >= 0.2) {
+    return message.spk_name
+  }
+  return resolveSpeakerLabel(message.speaker, message.speaker_id, message.spk, message.spk_id, 'Speaker 1')
+}
+
+function resolveSpeakerLabel(...values: Array<string | number | undefined>) {
+  const value = values.find((item) => item !== undefined && String(item).trim() !== '')
+  if (value === undefined) return 'Speaker 1'
+  const raw = String(value).trim()
+  if (/^speaker\s*\d+$/i.test(raw)) return raw.replace(/^speaker\s*/i, 'Speaker ')
+  if (/^\d+$/.test(raw)) return `Speaker ${raw}`
+  return raw
+}
+
 function stringValue(value: unknown) {
   return typeof value === 'string' ? value : ''
 }
@@ -3295,6 +4088,27 @@ function formatDuration(seconds: number) {
   const minutes = Math.floor((safeSeconds % 3600) / 60)
   const remainingSeconds = safeSeconds % 60
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+}
+
+function enhanceSpeechFrame(input: Float32Array, state: AudioPreprocessState) {
+  const output = new Float32Array(input.length)
+  let sumSquares = 0
+  for (let index = 0; index < input.length; index += 1) {
+    const sample = input[index]
+    const filtered = sample - state.previousInput + 0.995 * state.previousOutput
+    state.previousInput = sample
+    state.previousOutput = filtered
+    output[index] = filtered
+    sumSquares += filtered * filtered
+  }
+
+  const rms = Math.sqrt(sumSquares / Math.max(1, output.length))
+  const desiredGain = rms > 0.003 ? Math.min(4, Math.max(0.75, 0.08 / rms)) : state.gain
+  state.gain = state.gain * 0.92 + desiredGain * 0.08
+  for (let index = 0; index < output.length; index += 1) {
+    output[index] = Math.max(-0.98, Math.min(0.98, output[index] * state.gain))
+  }
+  return output
 }
 
 function downsampleToPcm16(input: Float32Array, inputSampleRate: number, outputSampleRate: number) {

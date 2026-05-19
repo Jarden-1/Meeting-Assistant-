@@ -22,7 +22,7 @@ export class ReportsService {
       });
     }
 
-    const context = await this.memory.buildReportContext(userId, sessionId);
+    const context = await this.memory.buildReportContext(userId, sessionId, dto.meetingContent);
     const content = await this.ai.generateReportDraft(userId, context);
     const draft = await this.prisma.reportDraft.create({
       data: {

@@ -2,6 +2,14 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { toDateOnly } from '../common/date';
 import { PrismaService } from '../prisma/prisma.service';
 
+type AssistantLiveTranscriptSnapshot = Array<{
+  speakerText?: string;
+  speaker?: string;
+  text?: string;
+  time?: string;
+  role?: string;
+}>;
+
 @Injectable()
 export class ThreadMemoryService {
   constructor(private readonly prisma: PrismaService) {}
@@ -106,7 +114,7 @@ export class ThreadMemoryService {
     };
   }
 
-  async buildAssistantContext(userId: string, sessionId: string, question: string) {
+  async buildAssistantContext(userId: string, sessionId: string, question: string, liveTranscriptSnapshot: AssistantLiveTranscriptSnapshot = []) {
     const session = await this.assertSession(userId, sessionId);
     const [preparation, segments, assistantMessages] = await Promise.all([
       this.buildPreparation(userId, session.threadId),
@@ -121,6 +129,14 @@ export class ThreadMemoryService {
         take: 10,
       }),
     ]);
+    const persistedTranscript = segments.map((segment) => ({
+      speakerText: segment.speakerText,
+      text: segment.text,
+      time: segment.startedAt?.toISOString() ?? segment.endedAt?.toISOString() ?? '',
+      source: 'saved_transcript',
+    }));
+    const liveTranscript = this.normalizeLiveTranscript(liveTranscriptSnapshot);
+    const combinedTranscript = this.mergeTranscriptSnapshots(persistedTranscript, liveTranscript);
 
     return {
       question,
@@ -137,7 +153,13 @@ export class ThreadMemoryService {
         background: session.thread.background,
       },
       preparation,
-      transcriptText: segments.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n'),
+      transcriptText: combinedTranscript.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n'),
+      savedTranscriptText: persistedTranscript.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n'),
+      liveTranscriptText: liveTranscript.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n'),
+      transcriptSourceNote:
+        liveTranscript.length > 0
+          ? 'transcriptText 已合并数据库保存转写和前端实时转写快照；如果重复，以更靠后的实时快照作为最新上下文。'
+          : 'transcriptText 来自数据库保存转写。',
       recentAssistantMessages: assistantMessages.reverse().map((message) => ({
         role: message.role,
         content: message.content,
@@ -145,7 +167,7 @@ export class ThreadMemoryService {
     };
   }
 
-  async buildReportContext(userId: string, sessionId: string) {
+  async buildReportContext(userId: string, sessionId: string, meetingContentOverride?: string) {
     const session = await this.assertSession(userId, sessionId);
     const [preparation, segments, discussionChains] = await Promise.all([
       this.buildPreparation(userId, session.threadId),
@@ -164,9 +186,11 @@ export class ThreadMemoryService {
       thread: session.thread,
       preparation,
       meetingContent:
-        segments.length > 0
-          ? segments.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n')
-          : session.meetingContent,
+        meetingContentOverride !== undefined
+          ? meetingContentOverride
+          : segments.length > 0
+            ? segments.map((segment) => `${segment.speakerText}: ${segment.text}`).join('\n')
+            : session.meetingContent,
       discussionChains,
     };
   }
@@ -196,5 +220,29 @@ export class ThreadMemoryService {
     if (questionCount > 0) agenda.push('处理遗留问题');
     if (actionCount > 0) agenda.push('补充待办负责人和截止时间');
     return agenda;
+  }
+
+  private normalizeLiveTranscript(snapshot: AssistantLiveTranscriptSnapshot) {
+    return snapshot
+      .map((item) => ({
+        speakerText: (item.speakerText ?? item.speaker ?? 'Speaker 1').trim() || 'Speaker 1',
+        text: (item.text ?? '').trim(),
+        time: item.time ?? '',
+        source: 'live_transcript',
+      }))
+      .filter((item) => item.text)
+      .slice(-100);
+  }
+
+  private mergeTranscriptSnapshots(
+    saved: Array<{ speakerText: string; text: string; time: string; source: string }>,
+    live: Array<{ speakerText: string; text: string; time: string; source: string }>,
+  ) {
+    const merged = new Map<string, { speakerText: string; text: string; time: string; source: string }>();
+    [...saved, ...live].forEach((item) => {
+      const key = `${item.speakerText}:${item.text}`.replace(/\s+/g, '');
+      merged.set(key, item);
+    });
+    return [...merged.values()].slice(-120);
   }
 }

@@ -11,6 +11,7 @@ $onlineModelDir = Join-Path $modelsRoot "paraformer-zh-streaming"
 $vadModelDir = Join-Path $modelsRoot "fsmn-vad"
 $puncModelDir = Join-Path $modelsRoot "ct-punc"
 $svModelDir = Join-Path $modelsRoot "campplus"
+$offlineSegmentsDir = Join-Path $root "funasr-offline-segments"
 
 if (!(Test-Path $pythonExe)) {
   throw "FunASR Python environment not found: $pythonExe"
@@ -34,15 +35,22 @@ $existing = Get-CimInstance Win32_Process |
 foreach ($processId in $existing) {
   try {
     Stop-Process -Id $processId -Force -ErrorAction Stop
+    Wait-Process -Id $processId -Timeout 5 -ErrorAction SilentlyContinue
   } catch {
   }
 }
 
-if (Test-Path $logFile) {
-  Remove-Item $logFile -Force
-}
-if (Test-Path $errorLogFile) {
-  Remove-Item $errorLogFile -Force
+foreach ($path in @($logFile, $errorLogFile)) {
+  if (Test-Path $path) {
+    for ($attempt = 0; $attempt -lt 5; $attempt += 1) {
+      try {
+        Remove-Item $path -Force -ErrorAction Stop
+        break
+      } catch {
+        Start-Sleep -Milliseconds 300
+      }
+    }
+  }
 }
 
 Start-Process `
@@ -60,7 +68,12 @@ Start-Process `
     "--asr_model_online", $onlineModelDir,
     "--vad_model", $vadModelDir,
     "--punc_model", $puncModelDir,
-    "--sv_model", $svModelDir
+    "--sv_model", $svModelDir,
+    "--speaker_cluster_threshold", "0.45",
+    "--speaker_cluster_min_ms", "600",
+    "--speaker_cluster_min_new_ms", "2500",
+    "--save_offline_segments",
+    "--save_offline_segments_dir", $offlineSegmentsDir
   ) `
   -RedirectStandardOutput $logFile `
   -RedirectStandardError $errorLogFile `
