@@ -1,0 +1,33 @@
+services:
+  funasr:
+    image: registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.13
+    container_name: meeting-assistant-funasr
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - "${FUNASR_HOST_PORT:-10095}:10095"
+    volumes:
+      - ./funasr-runtime-resources/models:/workspace/models
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        exec /workspace/FunASR/runtime/websocket/build/bin/funasr-wss-server-2pass \
+          --download-model-dir /workspace/models \
+          --model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx \
+          --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx \
+          --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
+          --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
+          --itn-dir thuduj12/fst_itn_zh \
+          --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
+          --decoder-thread-num ${FUNASR_DECODER_THREAD_NUM:-4} \
+          --io-thread-num ${FUNASR_IO_THREAD_NUM:-1} \
+          --model-thread-num ${FUNASR_MODEL_THREAD_NUM:-1} \
+          --port 10095 \
+          --certfile 0
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc 'cat < /dev/null > /dev/tcp/127.0.0.1/10095'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s

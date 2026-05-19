@@ -46,7 +46,6 @@ import {
   type ThreadListItem,
 } from './api'
 import { AudioCapture } from './asr/audio/AudioCapture'
-import { BrowserSpeechProvider } from './asr/providers/BrowserSpeechProvider'
 import { FunAsrProvider } from './asr/providers/FunAsrProvider'
 import type { AsrEvent } from './asr/types'
 import './App.css'
@@ -1447,7 +1446,6 @@ function LiveMeetingPage({
   startReportGeneration: (meetingContent?: string) => void
 }) {
   const [recordingState, setRecordingState] = useState<RecordingState>('idle')
-  const [recordingProvider, setRecordingProvider] = useState<'funasr' | 'browser' | null>(null)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [interimTranscript, setInterimTranscript] = useState('')
   const [interimSpeaker, setInterimSpeaker] = useState('Speaker 1')
@@ -1480,7 +1478,6 @@ function LiveMeetingPage({
   }, [elapsedSeconds, interimSpeaker, interimTranscript, transcript, transcriptTurns])
   const audioCaptureRef = useRef<AudioCapture | null>(null)
   const funAsrProviderRef = useRef<FunAsrProvider | null>(null)
-  const browserSpeechProviderRef = useRef<BrowserSpeechProvider | null>(null)
   const providerUnsubscribeRef = useRef<(() => void) | null>(null)
   const sentBytesRef = useRef(0)
   const socketMessagesRef = useRef(0)
@@ -1492,9 +1489,7 @@ function LiveMeetingPage({
   const isRecording = recordingState === 'recording'
   const isPaused = recordingState === 'paused'
   const recordingHint = isRecording
-    ? recordingProvider === 'funasr'
-      ? '正在使用本地 FunASR 实时识别'
-      : '正在使用浏览器麦克风识别'
+    ? '正在使用 FunASR Runtime SDK 实时识别'
     : isPaused
       ? '录音已暂停，可继续转写'
       : '点击开始录音后生成实时转写'
@@ -1526,28 +1521,28 @@ function LiveMeetingPage({
     }
   }
 
-  const appendFinalTranscript = (provider: 'funasr' | 'browser-speech', speaker: string, role: string, text: string) => {
+  const appendFinalTranscript = (speaker: string, text: string) => {
     const segment = {
-      id: `${provider}-${Date.now()}`,
+      id: `funasr-${Date.now()}`,
       speaker,
-      role,
+      role: 'FunASR 实时转写',
       time: formatClock(new Date().toISOString()),
       text,
     }
     setTranscript((items) => appendOrMergeTranscript(items, [segment]))
     setInterimTranscript('')
     setInterimSpeaker('Speaker 1')
-    void persistProviderTranscript(provider, [segment])
+    void persistProviderTranscript('funasr', [segment])
   }
 
-  const handleAsrEvent = (provider: 'funasr' | 'browser-speech', event: AsrEvent) => {
+  const handleAsrEvent = (event: AsrEvent) => {
     if (event.type === 'partial') {
       setInterimTranscript(event.text)
       setInterimSpeaker(event.speaker)
       return
     }
     if (event.type === 'final') {
-      appendFinalTranscript(provider, event.speaker, provider === 'funasr' ? 'FunASR 实时转写' : '实时转写', event.text)
+      appendFinalTranscript(event.speaker, event.text)
       return
     }
     if (event.type === 'status') {
@@ -1572,35 +1567,27 @@ function LiveMeetingPage({
     })
   }
 
-  const stopAsr = () => {
-    const diagnostics = audioCaptureRef.current?.exportDiagnostics({
-      provider: recordingProvider,
-      sentBytes: sentBytesRef.current,
-      receivedMessages: socketMessagesRef.current,
-    })
-    if (diagnostics) {
-      downloadBlob('sent-to-funasr.wav', diagnostics.wavBlob)
-      downloadBlob('audio-stats.json', diagnostics.statsBlob)
-    }
-    providerUnsubscribeRef.current?.()
-    providerUnsubscribeRef.current = null
+  const stopAsr = async () => {
     audioCaptureRef.current?.stop()
     audioCaptureRef.current = null
-    funAsrProviderRef.current?.stop()
-    funAsrProviderRef.current = null
-    browserSpeechProviderRef.current?.stop()
-    browserSpeechProviderRef.current = null
-    sentBytesRef.current = 0
-    socketMessagesRef.current = 0
-    micFramesRef.current = 0
+
+    try {
+      await funAsrProviderRef.current?.stop()
+    } finally {
+      providerUnsubscribeRef.current?.()
+      providerUnsubscribeRef.current = null
+      funAsrProviderRef.current = null
+      sentBytesRef.current = 0
+      socketMessagesRef.current = 0
+      micFramesRef.current = 0
+    }
   }
 
   useEffect(() => {
     return () => {
       providerUnsubscribeRef.current?.()
       audioCaptureRef.current?.stop()
-      funAsrProviderRef.current?.stop()
-      browserSpeechProviderRef.current?.stop()
+      void funAsrProviderRef.current?.stop()
     }
   }, [])
 
@@ -1613,33 +1600,14 @@ function LiveMeetingPage({
 
     const provider = new FunAsrProvider()
     const capture = new AudioCapture()
-    providerUnsubscribeRef.current = provider.onEvent((event) => handleAsrEvent('funasr', event))
+    providerUnsubscribeRef.current = provider.onEvent(handleAsrEvent)
     await provider.start({ wsUrl: FUNASR_WS_URL, sessionId })
     await capture.start({
       onPcm: (pcm) => provider.pushAudio(pcm),
-      onStats: (stats) => handleAsrEvent('funasr', { type: 'stats', micFrames: stats.micFrames, rms: stats.rms, peak: stats.peak, clippingRatio: stats.clippingRatio }),
+      onStats: (stats) => handleAsrEvent({ type: 'stats', micFrames: stats.micFrames, rms: stats.rms, peak: stats.peak, clippingRatio: stats.clippingRatio }),
     })
     funAsrProviderRef.current = provider
     audioCaptureRef.current = capture
-  }
-
-  const startBrowserRecognition = () => {
-    if (!authToken || !sessionId) {
-      notify('当前会议还没有可用的后端会话')
-      return
-    }
-    try {
-      const provider = new BrowserSpeechProvider()
-      providerUnsubscribeRef.current = provider.onEvent((event) => handleAsrEvent('browser-speech', event))
-      provider.start()
-      browserSpeechProviderRef.current = provider
-      recordingStartedAtRef.current = Date.now()
-      setRecordingProvider('browser')
-      setRecordingState('recording')
-    } catch (error) {
-      notify(error instanceof Error ? error.message : '录音启动失败，请检查浏览器麦克风权限')
-      setAsrStatus('浏览器识别启动失败')
-    }
   }
 
   const startRecording = async () => {
@@ -1650,23 +1618,21 @@ function LiveMeetingPage({
     try {
       await startFunAsrRecording()
       recordingStartedAtRef.current = Date.now()
-      setRecordingProvider('funasr')
       setRecordingState('recording')
-      notify('已连接本地 FunASR 实时识别')
+      notify('已连接 FunASR Runtime SDK 实时识别')
     } catch (error) {
-      stopAsr()
-      const fallbackMessage =
+      await stopAsr()
+      const message =
         error instanceof Error
-          ? `${error.message}，请先运行 scripts/start-funasr.ps1，已切换浏览器识别`
-          : 'FunASR 启动失败，请先运行 scripts/start-funasr.ps1，已切换浏览器识别'
-      notify(fallbackMessage)
+          ? `${error.message}，请先运行 pnpm funasr:up 并确认 ${FUNASR_WS_URL} 可连接`
+          : `FunASR Runtime SDK 启动失败，请先运行 pnpm funasr:up 并确认 ${FUNASR_WS_URL} 可连接`
+      notify(message)
       setAsrStatus(`FunASR 不可用：${FUNASR_WS_URL}`)
-      startBrowserRecognition()
+      setRecordingState('idle')
     }
   }
 
-  const pauseRecording = () => {
-    stopAsr()
+  const pauseRecording = async () => {
     if (recordingStartedAtRef.current) {
       elapsedBeforeStartRef.current += Date.now() - recordingStartedAtRef.current
       setElapsedSeconds(Math.floor(elapsedBeforeStartRef.current / 1000))
@@ -1674,16 +1640,18 @@ function LiveMeetingPage({
     recordingStartedAtRef.current = null
     setInterimTranscript('')
     setInterimSpeaker('Speaker 1')
-    setAsrStatus('录音已暂停')
     setRecordingState('paused')
+    setAsrStatus('录音已暂停，正在停止 FunASR 转写')
+    await stopAsr()
+    setAsrStatus('录音已暂停')
   }
 
-  const stopRecording = () => {
+  const stopRecording = async () => {
     if (isRecording) {
-      pauseRecording()
+      await pauseRecording()
+    } else {
+      await stopAsr()
     }
-    stopAsr()
-    setRecordingProvider(null)
     setAsrStatus('录音已停止')
     setRecordingState('idle')
   }
@@ -1771,7 +1739,8 @@ function LiveMeetingPage({
   }
 
   const endMeeting = async () => {
-    stopRecording()
+    setAsrStatus('正在结束会议')
+    await stopRecording()
     if (!authToken || !sessionId) {
       setPage('ai-progress')
       return
@@ -1801,7 +1770,7 @@ function LiveMeetingPage({
             <strong>实时语音转写</strong>
             <span>{recordingHint}</span>
           </div>
-          <button className="button secondary" type="button" onClick={isRecording ? pauseRecording : () => void startRecording()}>
+          <button className="button secondary" type="button" onClick={isRecording ? () => void pauseRecording() : () => void startRecording()}>
             {isRecording ? <PauseCircle size={16} /> : <Play size={16} />}
             {isRecording ? '暂停录音' : isPaused ? '继续录音' : '开始录音'}
           </button>
@@ -1812,7 +1781,7 @@ function LiveMeetingPage({
         </div>
         <div className="asr-status">
           <span>{asrStatus}</span>
-          {recordingProvider === 'funasr' && (
+          {recordingState !== 'idle' && (
             <small>
               麦克风帧 {asrStats.micFrames} · 已发送 {asrStats.sentKb} KB · 收到 {asrStats.messages} 条消息 · RMS {asrStats.rms.toFixed(3)} · 峰值 {asrStats.peak.toFixed(2)} · 削波 {(asrStats.clippingRatio * 100).toFixed(2)}%
             </small>
@@ -3764,15 +3733,6 @@ function clockToSeconds(value: string) {
   const parts = value.split(':').map((part) => Number(part))
   if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null
   return parts[0] * 3600 + parts[1] * 60 + parts[2]
-}
-
-function downloadBlob(name: string, blob: Blob) {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = name
-  link.click()
-  URL.revokeObjectURL(url)
 }
 
 function stringValue(value: unknown) {

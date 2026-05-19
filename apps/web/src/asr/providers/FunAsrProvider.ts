@@ -3,7 +3,7 @@ import type { AsrEvent, AsrEventListener } from '../types'
 const SAMPLE_RATE = 16000
 const CHUNK_SIZE = [5, 10, 5]
 const CHUNK_INTERVAL = 10
-const FINAL_FLUSH_WAIT_MS = 5000
+const FINAL_FLUSH_WAIT_MS = 2500
 
 type FunAsrProviderOptions = {
   wsUrl: string
@@ -22,7 +22,7 @@ type FunAsrMessage = {
   spk?: string | number
   spk_id?: string | number
   sentence_info?: FunAsrSentence[]
-  sentences?: FunAsrSentence[]
+  stamp_sents?: FunAsrStampSentence[]
 }
 
 type FunAsrSentence = {
@@ -34,6 +34,11 @@ type FunAsrSentence = {
   spk_id?: string | number
 }
 
+type FunAsrStampSentence = {
+  text_seg?: string
+  punc?: string
+}
+
 export class FunAsrProvider {
   private socket: WebSocket | null = null
   private listeners = new Set<AsrEventListener>()
@@ -41,6 +46,9 @@ export class FunAsrProvider {
   private sentBytes = 0
   private finalizedKeys = new Set<string>()
   private closeTimer: number | null = null
+  private stopping = false
+  private resolveStop: (() => void) | null = null
+  private stopPromise: Promise<void> | null = null
 
   onEvent(listener: AsrEventListener) {
     this.listeners.add(listener)
@@ -53,7 +61,7 @@ export class FunAsrProvider {
       this.closeTimer = null
     }
 
-    const socket = new WebSocket(options.wsUrl, 'binary')
+    const socket = new WebSocket(options.wsUrl)
     socket.binaryType = 'arraybuffer'
     this.emit({ type: 'status', message: '正在连接本地 FunASR' })
 
@@ -77,6 +85,9 @@ export class FunAsrProvider {
     this.receivedMessages = 0
     this.sentBytes = 0
     this.finalizedKeys = new Set()
+    this.stopping = false
+    this.resolveStop = null
+    this.stopPromise = null
 
     socket.onmessage = (event) => {
       if (typeof event.data !== 'string') return
@@ -95,12 +106,13 @@ export class FunAsrProvider {
         this.closeTimer = null
       }
       if (this.socket === socket) this.socket = null
-      this.emit({ type: 'status', message: 'FunASR 连接已关闭' })
+      this.resolvePendingStop()
+      if (!this.stopping) this.emit({ type: 'status', message: 'FunASR 连接已关闭' })
     }
 
     socket.send(
       JSON.stringify({
-        mode: 'offline',
+        mode: '2pass',
         wav_name: `meeting-${options.sessionId}-${Date.now()}`,
         wav_format: 'pcm',
         audio_fs: SAMPLE_RATE,
@@ -110,7 +122,7 @@ export class FunAsrProvider {
         itn: true,
       }),
     )
-    this.emit({ type: 'status', message: 'FunASR 已连接，正在发送音频；句末输出稳定转写' })
+    this.emit({ type: 'status', message: 'FunASR 已连接，正在发送音频；实时预览 + 句末稳定转写' })
   }
 
   pushAudio(pcm: Int16Array) {
@@ -124,17 +136,32 @@ export class FunAsrProvider {
 
   stop() {
     const socket = this.socket
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ is_speaking: false }))
-      this.emit({ type: 'status', message: '正在等待 FunASR 输出最后一段稳定转写' })
-      this.closeTimer = window.setTimeout(() => {
-        if (socket.readyState === WebSocket.OPEN) socket.close()
-        if (this.socket === socket) this.socket = null
-        this.closeTimer = null
-      }, FINAL_FLUSH_WAIT_MS)
-      return
+    if (this.stopping && this.stopPromise) return this.stopPromise
+
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      this.socket = null
+      this.resolvePendingStop()
+      return Promise.resolve()
     }
-    this.socket = null
+
+    this.stopping = true
+    if (!this.stopPromise) {
+      this.stopPromise = new Promise<void>((resolve) => {
+        this.resolveStop = resolve
+      })
+    }
+
+    socket.send(JSON.stringify({ is_speaking: false }))
+    this.emit({ type: 'status', message: '正在停止 FunASR 转写' })
+    this.closeTimer = window.setTimeout(() => {
+      this.emit({ type: 'status', message: 'FunASR 转写已停止' })
+      if (socket.readyState === WebSocket.OPEN) socket.close()
+      if (this.socket === socket) this.socket = null
+      this.closeTimer = null
+      this.resolvePendingStop()
+    }, FINAL_FLUSH_WAIT_MS)
+
+    return this.stopPromise
   }
 
   private handleMessage(message: FunAsrMessage) {
@@ -147,7 +174,7 @@ export class FunAsrProvider {
     const mode = message.mode ?? ''
     const final = message.is_final === true || mode.includes('offline')
     if (!final) {
-      this.emit({ type: 'status', message: 'FunASR 正在接收音频，等待稳定转写结果' })
+      this.emit({ type: 'partial', text, speaker: getFunAsrSpeaker(message) })
       return
     }
 
@@ -159,6 +186,22 @@ export class FunAsrProvider {
       this.emit({ type: 'final', text: part.text, speaker: part.speaker })
     }
     this.emit({ type: 'status', message: '已收到 FunASR 稳定转写结果' })
+
+    if (this.stopping && this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.close()
+    }
+    this.resolvePendingStop()
+  }
+
+  private resolvePendingStop() {
+    if (this.closeTimer !== null) {
+      window.clearTimeout(this.closeTimer)
+      this.closeTimer = null
+    }
+    this.stopping = false
+    this.resolveStop?.()
+    this.resolveStop = null
+    this.stopPromise = null
   }
 
   private emitStats() {
@@ -170,15 +213,22 @@ export class FunAsrProvider {
   }
 }
 
-function getFunAsrTranscriptParts(message: FunAsrMessage, fallbackText: string) {
-  const sentenceParts = (message.sentence_info ?? message.sentences ?? [])
+function getFunAsrTranscriptParts(message: FunAsrMessage, defaultText: string) {
+  const sentenceParts = (message.sentence_info ?? [])
     .map((sentence) => ({
       speaker: resolveSpeakerLabel(sentence.speaker, sentence.speaker_id, sentence.spk, sentence.spk_id, getFunAsrSpeaker(message)),
       text: normalizeFunAsrText(stringFromUnknown(sentence.text) || stringFromUnknown(sentence.voice_text_str)),
     }))
     .filter((part) => part.text)
 
-  return sentenceParts.length ? sentenceParts : [{ speaker: getFunAsrSpeaker(message), text: fallbackText }]
+  if (sentenceParts.length) return sentenceParts
+
+  const stampedParts = (message.stamp_sents ?? [])
+    .map((sentence) => normalizeFunAsrText(`${stringFromUnknown(sentence.text_seg)}${stringFromUnknown(sentence.punc)}`))
+    .filter((text) => text)
+    .map((text) => ({ speaker: getFunAsrSpeaker(message), text }))
+
+  return stampedParts.length ? stampedParts : [{ speaker: getFunAsrSpeaker(message), text: defaultText }]
 }
 
 function getFunAsrSpeaker(message: FunAsrMessage) {

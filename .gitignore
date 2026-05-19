@@ -4,8 +4,8 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
-funasr-runtime-resources/
 funasr-offline-segments/
+funasr-runtime-resources/
 vendor/
 
 # Logs
@@ -39,3 +39,4 @@ Thumbs.db
 
 .pi-tmp/
 .venv-funasr/
+scripts/__pycache__/

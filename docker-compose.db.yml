@@ -1,0 +1,22 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: meeting-assistant-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: meeting_assistant
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - meeting-assistant-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d meeting_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+volumes:
+  meeting-assistant-postgres-data:
