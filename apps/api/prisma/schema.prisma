@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  entryName       String           @unique
+  displayName     String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  threads         MeetingThread[]
+  sessions        MeetingSession[]
+  decisions       Decision[]
+  actionItems     ActionItem[]
+  progressUpdates ProgressUpdate[]
+  risks           Risk[]
+  openQuestions   OpenQuestion[]
+  carryInItems    CarryInItem[]
+  discussionChains DiscussionChain[]
+  assistantMsgs   AssistantMessage[]
+  reportDrafts    ReportDraft[]
+  transcriptions  Transcription[]
+  transcriptSegs  TranscriptSegment[]
+  llmConfig       UserLlmConfig?
+}
+
+model MeetingThread {
+  id              String           @id @default(cuid())
+  userId          String
+  title           String
+  background      String           @default("")
+  lastMeetingAt   DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions        MeetingSession[]
+  decisions       Decision[]
+  actionItems     ActionItem[]
+  progressUpdates ProgressUpdate[]
+  risks           Risk[]
+  openQuestions   OpenQuestion[]
+  carryInItems    CarryInItem[]
+  discussionChains DiscussionChain[]
+  assistantMsgs   AssistantMessage[]
+  reportDrafts    ReportDraft[]
+  transcriptions  Transcription[]
+  transcriptSegs  TranscriptSegment[]
+
+  @@index([userId])
+  @@index([userId, deletedAt])
+  @@index([userId, updatedAt])
+}
+
+model MeetingSession {
+  id                String              @id @default(cuid())
+  userId            String
+  threadId          String
+  title             String
+  status            String              @default("preparing")
+  meetingContent    String              @default("") @db.Text
+  summary           String              @default("") @db.Text
+  memorySummary     String              @default("") @db.Text
+  carryInSnapshot   Json?
+  startedAt         DateTime?
+  endedAt           DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread            MeetingThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  decisions         Decision[]
+  actionItems       ActionItem[]
+  progressUpdates   ProgressUpdate[]
+  risks             Risk[]
+  openQuestions     OpenQuestion[]
+  discussionChains  DiscussionChain[]
+  assistantMsgs     AssistantMessage[]
+  reportDrafts      ReportDraft[]
+  transcriptions    Transcription[]
+  transcriptSegments TranscriptSegment[]
+
+  @@index([userId, threadId])
+  @@index([userId, status])
+  @@index([threadId, createdAt])
+}
+
+model Decision {
+  id         String         @id @default(cuid())
+  userId     String
+  threadId   String
+  sessionId  String
+  type       String
+  content    String         @db.Text
+  rationale  String         @default("") @db.Text
+  sourceText String         @default("") @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread     MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session    MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId, type])
+  @@index([sessionId])
+}
+
+model ActionItem {
+  id          String         @id @default(cuid())
+  userId      String
+  threadId    String
+  sessionId   String
+  description String         @db.Text
+  ownerText   String         @default("")
+  dueDate     DateTime?
+  status      String         @default("pending")
+  priority    String         @default("medium")
+  riskLevel   String         @default("none")
+  importance  String         @default("low")
+  urgency     String         @default("low")
+  sourceText  String         @default("") @db.Text
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread      MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session     MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId, status])
+  @@index([userId, status, importance, urgency])
+  @@index([sessionId])
+}
+
+model ProgressUpdate {
+  id         String         @id @default(cuid())
+  userId     String
+  threadId   String
+  sessionId  String?
+  content    String         @db.Text
+  sourceText String         @default("") @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread     MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session    MeetingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, threadId])
+  @@index([sessionId])
+}
+
+model Risk {
+  id         String         @id @default(cuid())
+  userId     String
+  threadId   String
+  sessionId  String
+  content    String         @db.Text
+  level      String         @default("medium")
+  status     String         @default("active")
+  sourceText String         @default("") @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread     MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session    MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId, status])
+  @@index([sessionId])
+}
+
+model OpenQuestion {
+  id         String         @id @default(cuid())
+  userId     String
+  threadId   String
+  sessionId  String
+  content    String         @db.Text
+  status     String         @default("open")
+  sourceText String         @default("") @db.Text
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread     MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session    MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId, status])
+  @@index([sessionId])
+}
+
+model CarryInItem {
+  id              String        @id @default(cuid())
+  userId          String
+  threadId        String
+  sourceSessionId String?
+  type            String
+  content         String        @db.Text
+  status          String        @default("active")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread          MeetingThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId, status])
+}
+
+model DiscussionChain {
+  id             String         @id @default(cuid())
+  userId         String
+  threadId       String
+  sessionId      String
+  topic          String
+  facts          Json?
+  opinions       Json?
+  disagreements  Json?
+  decision       String         @default("") @db.Text
+  openQuestions  Json?
+  nextActions    Json?
+  sourceText     String         @default("") @db.Text
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  thread         MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session        MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, threadId])
+  @@index([sessionId])
+}
+
+model AssistantMessage {
+  id        String         @id @default(cuid())
+  userId    String
+  threadId  String
+  sessionId String
+  role      String
+  content   String         @db.Text
+  sources   Json?
+  mode      String?
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread    MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session   MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sessionId])
+  @@index([threadId, createdAt])
+}
+
+model ReportDraft {
+  id        String         @id @default(cuid())
+  userId    String
+  threadId  String
+  sessionId String
+  content   Json
+  status    String         @default("draft")
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread    MeetingThread  @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session   MeetingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sessionId, status])
+}
+
+model Transcription {
+  id              String              @id @default(cuid())
+  userId          String
+  threadId        String
+  sessionId       String
+  provider        String              @default("tencent")
+  mode            String              @default("realtime")
+  text            String              @default("") @db.Text
+  durationSeconds Int?
+  status          String              @default("processing")
+  errorMessage    String              @default("") @db.Text
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread          MeetingThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session         MeetingSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  segments        TranscriptSegment[]
+
+  @@index([userId, sessionId, status])
+}
+
+model TranscriptSegment {
+  id              String          @id @default(cuid())
+  userId          String
+  threadId        String
+  sessionId       String
+  transcriptionId String?
+  externalSegmentId String?       @unique
+  speakerText     String          @default("Speaker 1")
+  startedAt       DateTime?
+  endedAt         DateTime?
+  text            String          @db.Text
+  source          String          @default("manual")
+  sequence        Int
+  confidence      Float?
+  provider        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  thread          MeetingThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  session         MeetingSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  transcription   Transcription?  @relation(fields: [transcriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, sessionId, sequence])
+  @@index([threadId, createdAt])
+}
+
+model UserLlmConfig {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  provider        String   @default("openai-compatible")
+  baseUrl         String
+  model           String
+  encryptedApiKey String   @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

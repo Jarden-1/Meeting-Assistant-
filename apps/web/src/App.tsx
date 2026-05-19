@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  AlertTriangle,
   ArrowLeft,
   Bell,
   Bot,
   CalendarDays,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Circle,
   ClipboardCheck,
@@ -14,8 +14,8 @@ import {
   Clock3,
   Download,
   Edit3,
-  FileText,
   Filter,
+  FolderOpen,
   HelpCircle,
   LayoutDashboard,
   MessageSquareText,
@@ -32,8 +32,18 @@ import {
   Sparkles,
   StopCircle,
   Target,
+  Trash2,
   X,
 } from 'lucide-react'
+import {
+  FUNASR_WS_URL,
+  api,
+  type LlmSettingsResponse,
+  type PreparationResponse,
+  type ReportDraftResponse,
+  type SessionDetailResponse,
+  type ThreadListItem,
+} from './api'
 import './App.css'
 
 type Page =
@@ -83,6 +93,7 @@ type MeetingRecord = {
   title: string
   date: string
   time: string
+  sortAt: string
   participants: string
   todoCount: number
 }
@@ -94,6 +105,79 @@ type TranscriptItem = {
   time: string
   text: string
 }
+
+type RecordingState = 'idle' | 'recording' | 'paused'
+
+type BrowserSpeechRecognitionAlternative = {
+  transcript: string
+  confidence: number
+}
+
+type BrowserSpeechRecognitionResult = {
+  isFinal: boolean
+  length: number
+  0?: BrowserSpeechRecognitionAlternative
+}
+
+type BrowserSpeechRecognitionEvent = {
+  resultIndex: number
+  results: {
+    length: number
+    [index: number]: BrowserSpeechRecognitionResult
+  }
+}
+
+type BrowserSpeechRecognitionErrorEvent = {
+  error: string
+}
+
+type BrowserSpeechRecognition = {
+  continuous: boolean
+  interimResults: boolean
+  lang: string
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null
+  onerror: ((event: BrowserSpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+
+type BrowserSpeechRecognitionConstructor = new () => BrowserSpeechRecognition
+
+type SpeechRecognitionWindow = Window &
+  typeof globalThis & {
+    SpeechRecognition?: BrowserSpeechRecognitionConstructor
+    webkitSpeechRecognition?: BrowserSpeechRecognitionConstructor
+  }
+
+type FunAsrMessage = {
+  mode?: string
+  text?: string
+  wav_name?: string
+  is_final?: boolean
+  timestamp?: string
+}
+
+type SettingsState = {
+  system: {
+    provider: string
+    baseUrlConfigured: boolean
+    model: string
+    apiKeyConfigured: boolean
+  }
+  custom: {
+    provider: string
+    baseUrl: string
+    model: string
+    apiKeyConfigured: boolean
+  }
+  activeSource: 'system' | 'user'
+}
+
+const AUTH_TOKEN_KEY = 'meeting-assistant.access-token'
+const STANDALONE_THREAD_TITLE = '未归档会议'
+const STANDALONE_THREAD_BACKGROUND = '__standalone_meetings__'
+const NEW_THREAD_OPTION = '__new_thread__'
 
 const initialThreads: Thread[] = [
   {
@@ -136,6 +220,7 @@ const meetings: MeetingRecord[] = [
     title: '11 月 20 日 Q1 预算审查会议',
     date: '2026-05-17',
     time: '14:00 - 16:00',
+    sortAt: '2026-05-17T14:00:00',
     participants: '张三、李四、王五、赵六等 8 人',
     todoCount: 5,
   },
@@ -144,6 +229,7 @@ const meetings: MeetingRecord[] = [
     title: '11 月 13 日 周度同步例会',
     date: '2026-05-10',
     time: '10:00 - 11:00',
+    sortAt: '2026-05-10T10:00:00',
     participants: '张三、李四、王五等 6 人',
     todoCount: 3,
   },
@@ -281,13 +367,25 @@ const priorityTone: Record<Priority, string> = { P0: 'p0', P1: 'p1', P2: 'p2', P
 function App() {
   const [page, setPage] = useState<Page>('login')
   const [userName, setUserName] = useState('张经理')
+  const [authToken, setAuthToken] = useState<string | null>(() => window.localStorage.getItem(AUTH_TOKEN_KEY))
   const [threads, setThreads] = useState(initialThreads)
   const [todos, setTodos] = useState(initialTodos)
   const [transcript, setTranscript] = useState(initialTranscript)
   const [briefing, setBriefing] = useState(initialBriefing)
-  const [selectedThreadId, setSelectedThreadId] = useState(initialThreads[0].id)
+  const [selectedThreadId, setSelectedThreadId] = useState('')
+  const [threadMeetings, setThreadMeetings] = useState(() => sortMeetings(meetings))
+  const [threadMeetingsByThread, setThreadMeetingsByThread] = useState<Record<string, MeetingRecord[]>>(() => ({
+    [initialThreads[0].id]: sortMeetings(meetings),
+  }))
+  const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([initialThreads[0].id])
+  const [standaloneMeetings, setStandaloneMeetings] = useState<MeetingRecord[]>([])
   const [selectedMeeting, setSelectedMeeting] = useState(meetings[0])
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
+  const [selectedSessionThreadId, setSelectedSessionThreadId] = useState<string | null>(null)
+  const [reportDraft, setReportDraft] = useState<ReportDraftResponse | null>(null)
+  const [settingsState, setSettingsState] = useState<SettingsState | null>(null)
   const [modal, setModal] = useState<ModalKind>(null)
+  const [meetingDraftThreadId, setMeetingDraftThreadId] = useState('')
   const [drawer, setDrawer] = useState<DrawerKind>(null)
   const [editingTodoId, setEditingTodoId] = useState<string | null>(null)
   const [editingTranscriptId, setEditingTranscriptId] = useState<string | null>(null)
@@ -296,7 +394,8 @@ function App() {
   const [todoView, setTodoView] = useState<ViewMode>('matrix')
   const [filters, setFilters] = useState({ status: 'all', priority: 'all' })
 
-  const activeThread = threads.find((thread) => thread.id === selectedThreadId) ?? threads[0]
+  const visibleThreads = threads.filter((thread) => !isStandaloneThread(thread))
+  const activeThread = visibleThreads.find((thread) => thread.id === selectedThreadId) ?? visibleThreads[0] ?? threads[0]
   const filteredTodos = todos.filter((todo) => matchesTodoFilters(todo, filters))
   const threadTodos = filteredTodos.filter((todo) => todo.threadId === activeThread.id)
   const meetingTodos = filteredTodos.filter((todo) => todo.meetingId === selectedMeeting.id)
@@ -311,12 +410,30 @@ function App() {
     setDrawer('todo')
   }
 
+  const openMeetingModal = (threadId = '') => {
+    setMeetingDraftThreadId(threadId)
+    setModal('new-meeting')
+  }
+
+  const toggleThreadExpanded = (threadId: string) => {
+    setExpandedThreadIds((items) =>
+      items.includes(threadId) ? items.filter((item) => item !== threadId) : [...items, threadId],
+    )
+  }
+
   const toggleTodo = (id: string) => {
     setTodos((items) =>
       items.map((item) =>
         item.id === id ? { ...item, status: item.status === 'done' ? 'pending' : 'done' } : item,
       ),
     )
+    const item = todos.find((todo) => todo.id === id)
+    if (authToken && item) {
+      const nextStatus = item.status === 'done' ? 'pending' : 'done'
+      void api.updateActionItem(authToken, id, { status: nextStatus }).catch(() => {
+        notify('待办状态同步失败，已保留本地修改')
+      })
+    }
   }
 
   const saveTodo = (todo: ActionItem) => {
@@ -326,36 +443,192 @@ function App() {
     })
     setDrawer(null)
     notify('待办已保存')
+    if (authToken) {
+      void api
+        .updateActionItem(authToken, todo.id, {
+          description: todo.title,
+          ownerText: todo.owner,
+          dueDate: todo.due,
+          status: todo.status,
+          priority: todo.priority.toLowerCase(),
+          riskLevel: todo.risk,
+          importance: todo.importance,
+          urgency: todo.urgency,
+        })
+        .catch(() => undefined)
+    }
   }
 
-  const saveThread = (title: string, summary: string) => {
-    setThreads((items) => [
-      {
-        id: `thread-${Date.now()}`,
-        title,
-        summary,
-        risk: 0,
-        updatedAt: '刚刚',
-        members: [userName.slice(0, 1)],
-      },
-      ...items,
-    ])
-    setModal(null)
-    notify('会议议题已创建')
+  const saveThread = async (title: string, summary: string) => {
+    if (!authToken) return
+    try {
+      const created = await api.createThread(authToken, title, summary)
+      const response = await api.listThreads(authToken)
+      const mapped = response.items.map(toThread)
+      setThreads(mapped.length > 0 ? mapped : initialThreads)
+      setSelectedThreadId(created.id)
+      setModal(null)
+      notify('议题已创建')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '创建议题失败')
+    }
   }
 
-  const saveMeeting = (title: string) => {
-    setSelectedMeeting({
-      id: `meeting-${Date.now()}`,
-      title,
-      date: '2026-05-17',
-      time: '待安排',
-      participants: `${userName} 等 1 人`,
-      todoCount: 0,
-    })
-    setModal(null)
-    setPage('overview')
-    notify('会议已创建')
+  const deleteThread = async (threadId: string) => {
+    const thread = threads.find((item) => item.id === threadId)
+    if (!authToken || !thread || isStandaloneThread(thread)) return
+    const okToDelete = window.confirm(`删除议题「${thread.title}」？该议题会从列表中移除。`)
+    if (!okToDelete) return
+    try {
+      await api.deleteThread(authToken, threadId)
+      const nextThreads = threads.filter((item) => item.id !== threadId)
+      const nextVisibleThread = nextThreads.find((item) => !isStandaloneThread(item))
+      setThreads(nextThreads)
+      if (selectedThreadId === threadId) {
+        setSelectedThreadId(nextVisibleThread?.id ?? '')
+        setPage('threads')
+      }
+      notify('议题已删除')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '删除议题失败')
+    }
+  }
+
+  const deleteMeeting = async (meetingId: string) => {
+    if (!authToken) return
+    const meeting =
+      standaloneMeetings.find((item) => item.id === meetingId) ??
+      Object.values(threadMeetingsByThread).flat().find((item) => item.id === meetingId)
+    const okToDelete = window.confirm(`删除会议「${meeting?.title ?? '未命名会议'}」？`)
+    if (!okToDelete) return
+    try {
+      await api.deleteSession(authToken, meetingId)
+      setStandaloneMeetings((items) => items.filter((item) => item.id !== meetingId))
+      setThreadMeetings((items) => items.filter((item) => item.id !== meetingId))
+      setThreadMeetingsByThread((current) =>
+        Object.fromEntries(Object.entries(current).map(([threadId, items]) => [threadId, items.filter((item) => item.id !== meetingId)])),
+      )
+      if (selectedSessionId === meetingId) {
+        setSelectedSessionId(null)
+        setSelectedSessionThreadId(null)
+        setPage('threads')
+      }
+      notify('会议已删除')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '删除会议失败')
+    }
+  }
+
+  const moveMeetingToThread = async (meetingId: string, targetThreadId: string) => {
+    if (!authToken || !targetThreadId) return
+    const standaloneTarget = targetThreadId === '__standalone__'
+    const currentThreadId =
+      standaloneMeetings.some((item) => item.id === meetingId)
+        ? null
+        : Object.entries(threadMeetingsByThread).find(([, items]) => items.some((item) => item.id === meetingId))?.[0] ?? null
+    const meeting =
+      standaloneMeetings.find((item) => item.id === meetingId) ??
+      Object.values(threadMeetingsByThread).flat().find((item) => item.id === meetingId)
+    if (!meeting) return
+    try {
+      const resolvedThreadId = standaloneTarget ? await ensureStandaloneThread() : targetThreadId
+      const moved = toMeetingRecord(await api.moveSession(authToken, meetingId, resolvedThreadId))
+      setStandaloneMeetings((items) =>
+        standaloneTarget
+          ? sortMeetings([moved, ...items.filter((item) => item.id !== meetingId)])
+          : items.filter((item) => item.id !== meetingId),
+      )
+      setThreadMeetingsByThread((current) => {
+        const next = Object.fromEntries(
+          Object.entries(current).map(([threadId, items]) => [threadId, items.filter((item) => item.id !== meetingId)]),
+        ) as Record<string, MeetingRecord[]>
+        if (!standaloneTarget) {
+          next[targetThreadId] = sortMeetings([moved, ...(next[targetThreadId] ?? [])])
+        }
+        return next
+      })
+      if (selectedSessionId === meetingId) {
+        setSelectedThreadId(standaloneTarget ? selectedThreadId : targetThreadId)
+        setSelectedSessionThreadId(standaloneTarget ? null : targetThreadId)
+        setSelectedMeeting(moved)
+      }
+      setTodos((items) =>
+        items.map((item) =>
+          item.meetingId === meetingId
+            ? { ...item, threadId: standaloneTarget ? resolvedThreadId : targetThreadId }
+            : item,
+        ),
+      )
+      if (currentThreadId && currentThreadId === selectedThreadId && !standaloneTarget) {
+        setThreadMeetings((items) => items.filter((item) => item.id !== meetingId))
+      }
+      if (!standaloneTarget && targetThreadId === selectedThreadId) {
+        setThreadMeetings((items) => sortMeetings([moved, ...items.filter((item) => item.id !== meetingId)]))
+      }
+      if (standaloneTarget && currentThreadId === selectedThreadId) {
+        setThreadMeetings((items) => items.filter((item) => item.id !== meetingId))
+      }
+      notify(standaloneTarget ? '会议已移出为独立会议' : '会议已移动到议题文件夹')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '移动会议失败')
+    }
+  }
+
+  const ensureStandaloneThread = async () => {
+    if (!authToken) throw new Error('请先进入工作台')
+    const existing = threads.find(isStandaloneThread)
+    if (existing) return existing.id
+    const created = await api.createThread(authToken, STANDALONE_THREAD_TITLE, STANDALONE_THREAD_BACKGROUND)
+    const response = await api.listThreads(authToken)
+    const mapped = response.items.map(toThread)
+    setThreads(mapped.length > 0 ? mapped : [toThreadLike(created), ...threads])
+    return created.id
+  }
+
+  const saveMeeting = async (title: string, threadId?: string, newThread?: { title: string; summary: string }) => {
+    const creatingThread = threadId === NEW_THREAD_OPTION
+    const standalone = !threadId
+    try {
+      let targetThreadId = standalone ? await ensureStandaloneThread() : threadId
+      if (!authToken || !targetThreadId) return
+      if (creatingThread) {
+        const createdThread = await api.createThread(authToken, newThread?.title.trim() || title, newThread?.summary.trim() || '')
+        const response = await api.listThreads(authToken)
+        const mapped = response.items.map(toThread)
+        setThreads(mapped.length > 0 ? mapped : [toThreadLike(createdThread), ...threads])
+        targetThreadId = createdThread.id
+      }
+      const snapshot =
+        standalone
+          ? toPreparationSnapshot({ focus: '', agenda: [], consensus: [], decisions: [], questions: [] })
+          : targetThreadId === selectedThreadId
+          ? toPreparationSnapshot(briefing)
+          : toPreparationSnapshot(toBriefing(await api.getPreparation(authToken, targetThreadId)))
+      const created = await api.createSession(authToken, targetThreadId, title, snapshot)
+      const meeting = toMeetingRecord(created)
+      if (!standalone) setSelectedThreadId(targetThreadId)
+      setSelectedSessionId(created.id)
+      setSelectedSessionThreadId(standalone ? null : targetThreadId)
+      setSelectedMeeting(meeting)
+      if (standalone) {
+        setStandaloneMeetings((items) => sortMeetings([meeting, ...items.filter((item) => item.id !== meeting.id)]))
+      } else {
+        setThreadMeetings((items) =>
+          targetThreadId === selectedThreadId ? sortMeetings([meeting, ...items.filter((item) => item.id !== meeting.id)]) : [meeting],
+        )
+        setThreadMeetingsByThread((current) => ({
+          ...current,
+          [targetThreadId]: sortMeetings([meeting, ...(current[targetThreadId] ?? []).filter((item) => item.id !== meeting.id)]),
+        }))
+      }
+      setModal(null)
+      setTranscript([])
+      setReportDraft(null)
+      setPage('live')
+      notify('会议已创建')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '创建会议失败')
+    }
   }
 
   const exportData = (name: string, data: unknown) => {
@@ -370,8 +643,152 @@ function App() {
     notify('已导出 JSON 文件')
   }
 
+  useEffect(() => {
+    if (!authToken) return
+    let cancelled = false
+
+    const bootstrap = async () => {
+      try {
+        const [me, settings, threadsResponse, todosResponse] = await Promise.all([
+          api.me(authToken),
+          api.getSettings(authToken),
+          api.listThreads(authToken),
+          api.getMyTodos(authToken),
+        ])
+        if (cancelled) return
+        setUserName(me.displayName)
+        setSettingsState(toSettingsState(settings))
+        const mappedThreads = threadsResponse.items.map(toThread)
+        setThreads(mappedThreads.length > 0 ? mappedThreads : initialThreads)
+        const standaloneThread = mappedThreads.find(isStandaloneThread)
+        const visibleLoadedThreads = mappedThreads.filter((thread) => !isStandaloneThread(thread))
+        const visibleSessions = await Promise.all(
+          visibleLoadedThreads.map(async (thread) => {
+            const sessions = await api.listThreadSessions(authToken, thread.id)
+            return [thread.id, sortMeetings(sessions.items.map(toMeetingRecord))] as const
+          }),
+        )
+        if (!cancelled) {
+          setThreadMeetingsByThread(Object.fromEntries(visibleSessions))
+          setExpandedThreadIds((items) => {
+            const availableIds = new Set(visibleLoadedThreads.map((thread) => thread.id))
+            const preserved = items.filter((id) => availableIds.has(id))
+            return preserved.length > 0 ? preserved : visibleLoadedThreads.map((thread) => thread.id)
+          })
+        }
+        if (standaloneThread) {
+          const sessions = await api.listThreadSessions(authToken, standaloneThread.id)
+          if (!cancelled) setStandaloneMeetings(sortMeetings(sessions.items.map(toMeetingRecord)))
+        } else {
+          setStandaloneMeetings([])
+        }
+        setSelectedThreadId((current) => {
+          if (visibleLoadedThreads.some((thread) => thread.id === current)) return current
+          return visibleLoadedThreads[0]?.id ?? initialThreads[0]?.id ?? current
+        })
+        const matrix = todosResponse.matrix ?? {}
+        const items = Object.values(matrix).flat().map((item) => toTodo(item))
+        if (items.length > 0) {
+          setTodos(items)
+        }
+        if (!cancelled) {
+          setPage('threads')
+        }
+      } catch {
+        if (cancelled) return
+        window.localStorage.removeItem(AUTH_TOKEN_KEY)
+        setAuthToken(null)
+      }
+    }
+
+    void bootstrap()
+    return () => {
+      cancelled = true
+    }
+  }, [authToken])
+
+  useEffect(() => {
+    if (!authToken || !selectedThreadId) return
+    if (threads.find((thread) => thread.id === selectedThreadId && isStandaloneThread(thread))) return
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        const [preparationData, sessionsData, actionItemsData] = await Promise.all([
+          api.getPreparation(authToken, selectedThreadId),
+          api.listThreadSessions(authToken, selectedThreadId),
+          api.getThreadActionItems(authToken, selectedThreadId),
+        ])
+        if (cancelled) return
+        setBriefing(toBriefing(preparationData))
+        const sortedMeetings = sortMeetings(sessionsData.items.map(toMeetingRecord))
+        setThreadMeetings(sortedMeetings)
+        setThreadMeetingsByThread((current) => ({ ...current, [selectedThreadId]: sortedMeetings }))
+        const mappedTodos = actionItemsData.items.map((item) => toTodo(item))
+        setTodos((items) => mergeTodos(items, mappedTodos))
+        if (sortedMeetings[0]) {
+          setSelectedSessionId(sortedMeetings[0].id)
+          setSelectedSessionThreadId(selectedThreadId)
+          setSelectedMeeting(sortedMeetings[0])
+        } else {
+          setSelectedSessionId(null)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          notify(error instanceof Error ? error.message : '加载议题数据失败')
+        }
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [authToken, selectedThreadId, threads])
+
+  useEffect(() => {
+    if (!authToken || !selectedSessionId) return
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        const [session, draft] = await Promise.all([
+          api.getSession(authToken, selectedSessionId),
+          api.getReportDraft(authToken, selectedSessionId).catch(() => null),
+        ])
+        if (cancelled) return
+        setTranscript(session.transcriptSegments.map(toTranscript))
+        const thread = threads.find((item) => item.id === session.threadId)
+        setSelectedSessionThreadId(thread && !isStandaloneThread(thread) ? session.threadId : null)
+        setSelectedMeeting(toMeetingRecord(session))
+        setReportDraft(draft)
+      } catch (error) {
+        if (!cancelled) {
+          notify(error instanceof Error ? error.message : '加载会议详情失败')
+        }
+      }
+    }
+
+    void run()
+    return () => {
+      cancelled = true
+    }
+  }, [authToken, selectedSessionId, threads])
+
+  const enterWorkspace = async () => {
+    try {
+      const result = await api.enter(userName)
+      window.localStorage.setItem(AUTH_TOKEN_KEY, result.accessToken)
+      setAuthToken(result.accessToken)
+      setUserName(result.user.displayName)
+      notify('已进入工作台')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '登录失败')
+    }
+  }
+
   if (page === 'login') {
-    return <LoginPage userName={userName} setUserName={setUserName} onEnter={() => setPage('threads')} />
+    return <LoginPage userName={userName} setUserName={setUserName} onEnter={enterWorkspace} />
   }
 
   return (
@@ -386,12 +803,32 @@ function App() {
       >
         {page === 'threads' && (
           <ThreadsPage
-            threads={threads}
+            threads={visibleThreads}
+            threadMeetingsByThread={threadMeetingsByThread}
+            expandedThreadIds={expandedThreadIds}
+            standaloneMeetings={standaloneMeetings}
             todos={todos}
             query={query}
             setPage={setPage}
             selectThread={(threadId) => setSelectedThreadId(threadId)}
-            openModal={setModal}
+            openNewMeeting={() => openMeetingModal()}
+            openStandaloneMeeting={(meeting) => {
+              setSelectedMeeting(meeting)
+              setSelectedSessionId(meeting.id)
+              setSelectedSessionThreadId(null)
+              setPage('overview')
+            }}
+            openThreadMeeting={(threadId, meeting) => {
+              setSelectedThreadId(threadId)
+              setSelectedMeeting(meeting)
+              setSelectedSessionId(meeting.id)
+              setSelectedSessionThreadId(threadId)
+              setPage('overview')
+            }}
+            deleteThread={deleteThread}
+            deleteMeeting={deleteMeeting}
+            moveMeetingToThread={moveMeetingToThread}
+            toggleThreadExpanded={toggleThreadExpanded}
             openFilter={() => setDrawer('filters')}
             filters={filters}
           />
@@ -401,14 +838,16 @@ function App() {
             thread={activeThread}
             briefing={briefing}
             todos={todos.filter((todo) => todo.threadId === activeThread.id)}
-            meetings={meetings}
+            meetings={threadMeetings}
             setPage={setPage}
             openTodoDrawer={openTodoDrawer}
             openBriefing={() => setDrawer('briefing')}
             openMeeting={(meeting) => {
               setSelectedMeeting(meeting)
+              setSelectedSessionId(meeting.id)
               setPage('overview')
             }}
+            openNewMeeting={() => openMeetingModal(activeThread?.id)}
           />
         )}
         {page === 'thread-todos' && (
@@ -421,11 +860,24 @@ function App() {
             openFilter={() => setDrawer('filters')}
           />
         )}
-        {page === 'live' && <LiveMeetingPage transcript={transcript} setPage={setPage} notify={notify} />}
+        {page === 'live' && (
+          <LiveMeetingPage
+            transcript={transcript}
+            meeting={selectedMeeting}
+            authToken={authToken}
+            sessionId={selectedSessionId}
+            setPage={setPage}
+            setTranscript={setTranscript}
+            notify={notify}
+            onReportDraft={setReportDraft}
+          />
+        )}
         {page === 'ai-progress' && <AiProgressPage setPage={setPage} />}
         {page === 'overview' && (
           <OverviewPage
             meeting={selectedMeeting}
+            activeThread={selectedSessionThreadId ? visibleThreads.find((thread) => thread.id === selectedSessionThreadId) ?? null : null}
+            reportDraft={reportDraft}
             setPage={setPage}
             openDrawer={setDrawer}
             exportReport={() => setModal('export')}
@@ -461,15 +913,26 @@ function App() {
             openFilter={() => setDrawer('filters')}
           />
         )}
-        {page === 'settings' && <SettingsPage notify={notify} openHelp={() => setModal('help')} />}
+        {page === 'settings' && (
+          <SettingsPage
+            key={settingsState ? `${settingsState.activeSource}:${settingsState.custom.baseUrl}:${settingsState.custom.model}:${settingsState.custom.apiKeyConfigured}` : 'settings-loading'}
+            authToken={authToken}
+            initialSettings={settingsState}
+            notify={notify}
+            openHelp={() => setModal('help')}
+            onSettingsChange={setSettingsState}
+          />
+        )}
       </AppShell>
 
       <Modal
-        key={`modal-${modal}`}
+        key={`modal-${modal}-${meetingDraftThreadId}`}
         kind={modal}
         close={() => setModal(null)}
         saveThread={saveThread}
         saveMeeting={saveMeeting}
+        threads={visibleThreads}
+        selectedThreadId={meetingDraftThreadId}
         exportCurrent={() => exportData('meeting-report.json', { selectedMeeting, todos: meetingTodos })}
       />
       <Drawer
@@ -487,7 +950,21 @@ function App() {
         filters={filters}
         setFilters={setFilters}
         transcript={transcript.find((item) => item.id === editingTranscriptId)}
-        saveTranscript={(item) => {
+        saveTranscript={async (item) => {
+          if (authToken && editingTranscriptId) {
+            try {
+              const result = await api.updateTranscriptSegment(authToken, editingTranscriptId, {
+                speakerText: item.speaker,
+                text: item.text,
+              })
+              setTranscript(result.items.map(toTranscript))
+              setDrawer(null)
+              notify('转写片段已更新')
+              return
+            } catch (error) {
+              notify(error instanceof Error ? error.message : '转写更新失败')
+            }
+          }
           setTranscript((items) => items.map((current) => (current.id === item.id ? item : current)))
           setDrawer(null)
           notify('转写片段已更新')
@@ -568,7 +1045,7 @@ function AppShell({
   openModal: (kind: ModalKind) => void
 }) {
   const navItems = [
-    { key: 'threads' as Page, label: '会议议题', icon: LayoutDashboard },
+    { key: 'threads' as Page, label: '我的会议', icon: LayoutDashboard },
     { key: 'my-todos' as Page, label: '我的待办', icon: ClipboardCheck },
     { key: 'settings' as Page, label: '设置', icon: Settings },
   ]
@@ -613,10 +1090,6 @@ function AppShell({
             <IconButton label="帮助" onClick={() => openModal('help')}>
               <HelpCircle size={18} />
             </IconButton>
-            <button className="button primary" type="button" onClick={() => openModal('new-meeting')}>
-              <Plus size={16} />
-              新建会议
-            </button>
           </div>
         </header>
         <div className="content">{children}</div>
@@ -627,53 +1100,76 @@ function AppShell({
 
 function ThreadsPage({
   threads,
+  threadMeetingsByThread,
+  expandedThreadIds,
+  standaloneMeetings,
   todos,
   query,
   setPage,
   selectThread,
-  openModal,
+  openNewMeeting,
+  openStandaloneMeeting,
+  openThreadMeeting,
+  deleteThread,
+  deleteMeeting,
+  moveMeetingToThread,
+  toggleThreadExpanded,
   openFilter,
   filters,
 }: {
   threads: Thread[]
+  threadMeetingsByThread: Record<string, MeetingRecord[]>
+  expandedThreadIds: string[]
+  standaloneMeetings: MeetingRecord[]
   todos: ActionItem[]
   query: string
   setPage: (page: Page) => void
   selectThread: (threadId: string) => void
-  openModal: (kind: ModalKind) => void
+  openNewMeeting: () => void
+  openStandaloneMeeting: (meeting: MeetingRecord) => void
+  openThreadMeeting: (threadId: string, meeting: MeetingRecord) => void
+  deleteThread: (threadId: string) => void
+  deleteMeeting: (meetingId: string) => void
+  moveMeetingToThread: (meetingId: string, threadId: string) => void
+  toggleThreadExpanded: (threadId: string) => void
   openFilter: () => void
   filters: { status: string; priority: string }
 }) {
+  const filtersAreDefault = filters.status === 'all' && filters.priority === 'all'
+  const trimmedQuery = query.trim()
   const visibleThreads = threads.filter((thread) => {
-    const matchesQuery = `${thread.title}${thread.summary}`.includes(query.trim())
-    const filtersAreDefault = filters.status === 'all' && filters.priority === 'all'
+    const matchesQuery = `${thread.title}${thread.summary}`.includes(trimmedQuery)
     const hasFilteredTodos =
       filtersAreDefault || todos.some((todo) => todo.threadId === thread.id && matchesTodoFilters(todo, filters))
     return matchesQuery && hasFilteredTodos
   })
-  const openTodoCount = todos.filter((todo) => todo.status !== 'done').length
+  const visibleStandaloneMeetings = standaloneMeetings.filter((meeting) =>
+    `${meeting.title}${meeting.date}${meeting.time}`.includes(trimmedQuery),
+  )
+  const threadTodoCount = (threadId: string) =>
+    todos.filter((todo) => todo.threadId === threadId && (filtersAreDefault || matchesTodoFilters(todo, filters))).length
 
   return (
     <div className="page-stack">
       <PageHeader
         eyebrow="Workspace"
-        title="会议议题"
-        description="从连续会议线程开始，把会前背景、会中记录和会后跟进串起来。"
+        title="我的会议"
+        description="按议题整理连续会议，让后一次会议自然继承前一次会议的背景、决策和待办。"
         actions={
-          <button className="button primary" type="button" onClick={() => openModal('new-thread')}>
+          <button className="button primary" type="button" onClick={openNewMeeting}>
             <Plus size={16} />
-            新建议题
+            新建会议
           </button>
         }
       />
       <div className="stats-grid">
-        <StatCard label="议题总数" value={String(threads.length)} icon={<FileText size={22} />} />
-        <StatCard label="严重卡点议题" value={String(threads.filter((thread) => thread.risk >= 3).length)} tone="danger" icon={<AlertTriangle size={22} />} />
-        <StatCard label="待处理事项" value={String(openTodoCount)} tone="todo" icon={<ClipboardList size={22} />} />
+        <StatCard label="独立会议" value={String(standaloneMeetings.length)} icon={<CalendarDays size={22} />} />
+        <StatCard label="议题文件夹" value={String(threads.length)} icon={<FolderOpen size={22} />} />
+        <StatCard label="待办总数" value={String(todos.length)} tone="todo" icon={<ClipboardCheck size={22} />} />
       </div>
       <section className="card table-card">
         <div className="table-head">
-          <h3>最近会议议题</h3>
+          <h3>会议与议题</h3>
           <button className="button secondary" type="button" onClick={openFilter}>
             <Filter size={16} />
             筛选
@@ -681,41 +1177,162 @@ function ThreadsPage({
         </div>
         <div className="thread-table">
           <div className="table-row table-labels">
-            <span>议题名称</span>
+            <span>名称</span>
             <span>待办</span>
-            <span>风险</span>
-            <span>最后更新</span>
+            <span>创建/更新</span>
             <span>参与成员</span>
+            <span>操作</span>
           </div>
-          {visibleThreads.map((thread) => (
-            <button
-              className="table-row thread-row"
-              key={thread.id}
-              type="button"
-              onClick={() => {
-                selectThread(thread.id)
-                setPage('briefing')
+          {visibleStandaloneMeetings.map((meeting) => (
+            <div
+              className="table-row top-level-meeting-row"
+              key={meeting.id}
+              draggable
+              onDragStart={(event) => {
+                event.dataTransfer.setData('application/meeting-id', meeting.id)
+                event.dataTransfer.effectAllowed = 'move'
               }}
             >
-              <span className="thread-title-cell">
-                <FileText size={18} />
-                <span>
-                  <strong>{thread.title}</strong>
-                  <small>{thread.summary}</small>
+              <button className="meeting-row-main" type="button" onClick={() => openStandaloneMeeting(meeting)}>
+                <span className="thread-title-cell">
+                  <CalendarDays size={18} />
+                  <span>
+                    <strong>{meeting.title}</strong>
+                  </span>
                 </span>
+                <span>{meeting.todoCount}</span>
+                <span>{meetingCreatedAt(meeting)}</span>
+                <span className="muted-cell">{displayParticipants(meeting.participants)}</span>
+              </button>
+              <span className="row-actions">
+                <select
+                  className="move-meeting-select"
+                  aria-label={`移动会议 ${meeting.title}`}
+                  value=""
+                  onChange={(event) => {
+                    moveMeetingToThread(meeting.id, event.target.value)
+                  }}
+                >
+                  <option value="" disabled>
+                    移动到...
+                  </option>
+                  <option value="__standalone__">移出为独立会议</option>
+                  {threads.map((thread) => (
+                    <option value={thread.id} key={thread.id}>
+                      {thread.title}
+                    </option>
+                  ))}
+                </select>
+                <button className="ghost-icon danger-icon" type="button" aria-label={`删除会议 ${meeting.title}`} title="删除会议" onClick={() => deleteMeeting(meeting.id)}>
+                  <Trash2 size={15} />
+                </button>
               </span>
-              <span>{todos.filter((todo) => todo.threadId === thread.id && todo.status !== 'done').length}</span>
-              <span className={thread.risk > 2 ? 'risk-number' : ''}>{thread.risk}</span>
-              <span>{thread.updatedAt}</span>
-              <span className="member-stack">{thread.members.map((item) => <i key={item}>{item}</i>)}</span>
-            </button>
+            </div>
           ))}
+          {visibleThreads.map((thread) => {
+            const threadMeetings = threadMeetingsByThread[thread.id] ?? []
+            const expanded = expandedThreadIds.includes(thread.id)
+            return (
+              <div
+                className="thread-group"
+                key={thread.id}
+                onDragOver={(event) => {
+                  if (event.dataTransfer.types.includes('application/meeting-id')) {
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                  }
+                }}
+                onDrop={(event) => {
+                  const meetingId = event.dataTransfer.getData('application/meeting-id')
+                  if (meetingId) {
+                    event.preventDefault()
+                    moveMeetingToThread(meetingId, thread.id)
+                  }
+                }}
+              >
+                <div className="table-row thread-row">
+                  <button className="expand-button" type="button" aria-label={expanded ? `收起 ${thread.title}` : `展开 ${thread.title}`} onClick={() => toggleThreadExpanded(thread.id)}>
+                    {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                  </button>
+                  <button
+                    className="thread-row-main"
+                    type="button"
+                    onClick={() => {
+                      selectThread(thread.id)
+                      setPage('briefing')
+                    }}
+                  >
+                    <span className="thread-title-cell">
+                      <FolderOpen size={18} />
+                      <span>
+                        <strong>{thread.title}</strong>
+                        {displayThreadSummary(thread.summary) ? <small>{displayThreadSummary(thread.summary)}</small> : null}
+                      </span>
+                    </span>
+                    <span>{threadTodoCount(thread.id)}</span>
+                    <span>{thread.updatedAt}</span>
+                    <span className="muted-cell">{thread.members.join('、')}</span>
+                  </button>
+                  <button
+                    className="ghost-icon danger-icon"
+                    type="button"
+                    aria-label={`删除议题 ${thread.title}`}
+                    title="删除议题"
+                    onClick={() => deleteThread(thread.id)}
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+                {expanded &&
+                  threadMeetings.map((meeting) => (
+                    <div className="thread-meeting-row" key={meeting.id} draggable onDragStart={(event) => {
+                      event.dataTransfer.setData('application/meeting-id', meeting.id)
+                      event.dataTransfer.effectAllowed = 'move'
+                    }}>
+                      <button className="thread-meeting-main" type="button" onClick={() => openThreadMeeting(thread.id, meeting)}>
+                        <CalendarDays size={16} />
+                        <span>
+                          <strong>{meeting.title}</strong>
+                        </span>
+                      </button>
+                      <span>{meeting.todoCount}</span>
+                      <span>{meetingCreatedAt(meeting)}</span>
+                      <span className="muted-cell">{displayParticipants(meeting.participants)}</span>
+                      <span className="row-actions">
+                        <select
+                          className="move-meeting-select"
+                          aria-label={`移动会议 ${meeting.title}`}
+                          value=""
+                          onChange={(event) => {
+                            moveMeetingToThread(meeting.id, event.target.value)
+                          }}
+                        >
+                          <option value="" disabled>
+                            移动到...
+                          </option>
+                          <option value="__standalone__">移出为独立会议</option>
+                          {threads
+                            .filter((candidate) => candidate.id !== thread.id)
+                            .map((thread) => (
+                              <option value={thread.id} key={thread.id}>
+                                {thread.title}
+                              </option>
+                            ))}
+                        </select>
+                        <button className="ghost-icon danger-icon" type="button" aria-label={`删除会议 ${meeting.title}`} title="删除会议" onClick={() => deleteMeeting(meeting.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )
+          })}
         </div>
       </section>
     </div>
   )
 }
-
 function BriefingPage({
   thread,
   briefing,
@@ -725,6 +1342,7 @@ function BriefingPage({
   openTodoDrawer,
   openBriefing,
   openMeeting,
+  openNewMeeting,
 }: {
   thread: Thread
   briefing: typeof initialBriefing
@@ -734,20 +1352,25 @@ function BriefingPage({
   openTodoDrawer: (id?: string) => void
   openBriefing: () => void
   openMeeting: (meeting: MeetingRecord) => void
+  openNewMeeting: () => void
 }) {
   return (
     <div className="briefing-layout">
       <section className="page-stack">
-        <Breadcrumb onBack={() => setPage('threads')} label="会议议题 / 返回" />
+        <Breadcrumb onBack={() => setPage('threads')} label="我的会议 / 返回" />
         <PageHeader
           eyebrow="2026-05-17"
           title={thread.title}
-          description="会前简报已基于历史会议、待办、风险和遗留问题动态生成。"
+          description="这个议题下的会议按时间倒序排列，新会议会继承前序会议的背景、待办、风险和遗留问题。"
           actions={
             <>
               <button className="button secondary no-wrap" type="button" onClick={openBriefing}>
                 <Edit3 size={16} />
                 编辑简报
+              </button>
+              <button className="button secondary no-wrap" type="button" onClick={openNewMeeting}>
+                <Plus size={16} />
+                新建会议
               </button>
               <button className="button primary no-wrap" type="button" onClick={() => setPage('live')}>
                 <Play size={16} />
@@ -783,10 +1406,18 @@ function BriefingPage({
             <MiniTodo key={item.id} item={item} onClick={() => openTodoDrawer(item.id)} />
           ))}
         </RailCard>
-        <RailCard title="会议记录" count={String(meetings.length)} onTitleClick={() => openMeeting(meetings[0])}>
-          {meetings.map((meeting) => (
-            <MiniMeeting key={meeting.id} meeting={meeting} onClick={() => openMeeting(meeting)} />
-          ))}
+        <RailCard title="会议顺序" count={String(meetings.length)} onTitleClick={meetings[0] ? () => openMeeting(meetings[0]) : undefined}>
+          {meetings.length > 0 ? (
+            meetings.map((meeting) => (
+              <MiniMeeting key={meeting.id} meeting={meeting} onClick={() => openMeeting(meeting)} />
+            ))
+          ) : (
+            <p className="rail-copy">这个议题下还没有会议。</p>
+          )}
+          <button className="button secondary wide" type="button" onClick={openNewMeeting}>
+            <Plus size={16} />
+            新建本议题会议
+          </button>
         </RailCard>
         <RailCard title="待跟进要点" onTitleClick={() => setPage('thread-todos')}>
           {briefing.questions.slice(0, 3).map((item) => (
@@ -818,7 +1449,7 @@ function ThreadTodosPage({
 }) {
   return (
     <div className="page-stack">
-      <Breadcrumb onBack={() => setPage('briefing')} label={`会议议题 / ${thread.title} / 关联待办`} />
+      <Breadcrumb onBack={() => setPage('briefing')} label={`我的会议 / ${thread.title} / 关联待办`} />
       <PageHeader
         title="议题关联待办"
         description="这里展示该议题下全部待办，包括已完成项。"
@@ -845,20 +1476,439 @@ function ThreadTodosPage({
 
 function LiveMeetingPage({
   transcript,
+  meeting,
+  authToken,
+  sessionId,
   setPage,
+  setTranscript,
   notify,
+  onReportDraft,
 }: {
   transcript: TranscriptItem[]
+  meeting: MeetingRecord
+  authToken: string | null
+  sessionId: string | null
   setPage: (page: Page) => void
+  setTranscript: React.Dispatch<React.SetStateAction<TranscriptItem[]>>
   notify: (message: string) => void
+  onReportDraft: (draft: ReportDraftResponse | null) => void
 }) {
-  const [paused, setPaused] = useState(false)
+  const [recordingState, setRecordingState] = useState<RecordingState>('idle')
+  const [recordingProvider, setRecordingProvider] = useState<'funasr' | 'browser' | null>(null)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [interimTranscript, setInterimTranscript] = useState('')
+  const [asrStatus, setAsrStatus] = useState('等待开始')
+  const [asrStats, setAsrStats] = useState({ sentKb: 0, messages: 0, micFrames: 0 })
   const [assistantText, setAssistantText] = useState('您好，我正在旁听会议。您可以随时向我提问，或者让我帮您整理纪要和待办。')
   const [question, setQuestion] = useState('')
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null)
+  const shouldRestartRecognitionRef = useRef(false)
+  const funAsrSocketRef = useRef<WebSocket | null>(null)
+  const finalizedFunAsrKeysRef = useRef<Set<string>>(new Set())
+  const mediaStreamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const audioProcessorRef = useRef<ScriptProcessorNode | null>(null)
+  const pcmQueueRef = useRef<Int16Array>(new Int16Array())
+  const sentBytesRef = useRef(0)
+  const socketMessagesRef = useRef(0)
+  const micFramesRef = useRef(0)
+  const lastStatsPaintRef = useRef(0)
+  const recordingStartedAtRef = useRef<number | null>(null)
+  const elapsedBeforeStartRef = useRef(0)
+  const recordingStateRef = useRef<RecordingState>('idle')
 
-  const ask = (text: string) => {
-    setAssistantText(`根据当前会议内容：${text}。我已经整理出 2 个需要补负责人或截止时间的事项。`)
-    setQuestion('')
+  const isRecording = recordingState === 'recording'
+  const isPaused = recordingState === 'paused'
+  const recordingHint = isRecording
+    ? recordingProvider === 'funasr'
+      ? '正在使用本地 FunASR 实时识别'
+      : '正在使用浏览器麦克风识别'
+    : isPaused
+      ? '录音已暂停，可继续转写'
+      : '点击开始录音后生成实时转写'
+
+  useEffect(() => {
+    if (!isRecording) return undefined
+    const timer = window.setInterval(() => {
+      const startedAt = recordingStartedAtRef.current ?? Date.now()
+      setElapsedSeconds(Math.floor((elapsedBeforeStartRef.current + Date.now() - startedAt) / 1000))
+    }, 500)
+    return () => window.clearInterval(timer)
+  }, [isRecording])
+
+  useEffect(() => {
+    recordingStateRef.current = recordingState
+  }, [recordingState])
+
+  const persistTranscript = async (segments: TranscriptItem[]) => {
+    if (!authToken || !sessionId || segments.length === 0) return
+    try {
+      await api.createTranscription(authToken, sessionId, {
+        provider: 'browser-speech',
+        mode: 'realtime',
+        durationSeconds: elapsedSeconds,
+        segments: segments.map((segment) => ({
+          speakerText: segment.speaker,
+          text: segment.text,
+          startedAt: new Date().toISOString(),
+        })),
+      })
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '转写内容保存失败')
+    }
+  }
+
+  const persistProviderTranscript = async (provider: string, segments: TranscriptItem[]) => {
+    if (!authToken || !sessionId || segments.length === 0) return
+    try {
+      await api.createTranscription(authToken, sessionId, {
+        provider,
+        mode: 'realtime',
+        durationSeconds: elapsedSeconds,
+        segments: segments.map((segment) => ({
+          speakerText: segment.speaker,
+          text: segment.text,
+          startedAt: new Date().toISOString(),
+        })),
+      })
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '转写内容保存失败')
+    }
+  }
+
+  const createRecognition = () => {
+    const Recognition = (window as SpeechRecognitionWindow).SpeechRecognition ?? (window as SpeechRecognitionWindow).webkitSpeechRecognition
+    if (!Recognition) return null
+    const recognition = new Recognition()
+    recognition.continuous = true
+    recognition.interimResults = true
+    recognition.lang = 'zh-CN'
+    recognition.onresult = (event) => {
+      const finalSegments: TranscriptItem[] = []
+      let interim = ''
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index]
+        const text = result[0]?.transcript.trim() ?? ''
+        if (!text) continue
+        if (result.isFinal) {
+          finalSegments.push({
+            id: `tr-${Date.now()}-${index}`,
+            speaker: 'Speaker 1',
+            role: '实时转写',
+            time: formatClock(new Date().toISOString()),
+            text,
+          })
+        } else {
+          interim = text
+        }
+      }
+      if (finalSegments.length > 0) {
+        setTranscript((items) => [...items, ...finalSegments])
+        void persistTranscript(finalSegments)
+      }
+      setInterimTranscript(interim)
+    }
+    recognition.onerror = (event) => {
+      if (event.error === 'no-speech') return
+      shouldRestartRecognitionRef.current = false
+      setRecordingState('idle')
+      notify(event.error === 'not-allowed' ? '浏览器未授权麦克风，无法录音' : `语音识别失败：${event.error}`)
+    }
+    recognition.onend = () => {
+      if (!shouldRestartRecognitionRef.current) return
+      try {
+        recognition.start()
+      } catch {
+        shouldRestartRecognitionRef.current = false
+      }
+    }
+    return recognition
+  }
+
+  const paintAsrStats = (force = false) => {
+    const now = Date.now()
+    if (!force && now - lastStatsPaintRef.current <= 500) return
+    lastStatsPaintRef.current = now
+    setAsrStats((current) => ({
+      ...current,
+      sentKb: Math.round(sentBytesRef.current / 1024),
+      micFrames: micFramesRef.current,
+    }))
+  }
+
+  const enqueuePcmToSocket = (socket: WebSocket | null, pcm: Int16Array) => {
+    paintAsrStats()
+    if (!socket || socket.readyState !== WebSocket.OPEN) return
+    pcmQueueRef.current = concatInt16Arrays(pcmQueueRef.current, pcm)
+    const samplesPerPacket = 3200
+    while (pcmQueueRef.current.length >= samplesPerPacket) {
+      const chunk = pcmQueueRef.current.slice(0, samplesPerPacket)
+      pcmQueueRef.current = pcmQueueRef.current.slice(samplesPerPacket)
+      socket.send(chunk.buffer)
+      sentBytesRef.current += chunk.byteLength
+      paintAsrStats()
+    }
+  }
+
+  const enqueueFunAsrPcm = (pcm: Int16Array) => {
+    enqueuePcmToSocket(funAsrSocketRef.current, pcm)
+  }
+
+  const stopStreamingAudio = () => {
+    audioProcessorRef.current?.disconnect()
+    audioSourceRef.current?.disconnect()
+    audioContextRef.current?.close().catch(() => undefined)
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop())
+    const funAsrSocket = funAsrSocketRef.current
+    if (funAsrSocket && funAsrSocket.readyState === WebSocket.OPEN) {
+      funAsrSocket.send(JSON.stringify({ is_speaking: false }))
+      window.setTimeout(() => funAsrSocket.close(), 300)
+    }
+    audioProcessorRef.current = null
+    audioSourceRef.current = null
+    audioContextRef.current = null
+    mediaStreamRef.current = null
+    funAsrSocketRef.current = null
+    pcmQueueRef.current = new Int16Array()
+    sentBytesRef.current = 0
+    socketMessagesRef.current = 0
+    micFramesRef.current = 0
+    lastStatsPaintRef.current = 0
+  }
+
+  useEffect(() => {
+    return () => {
+      shouldRestartRecognitionRef.current = false
+      recognitionRef.current?.stop()
+      stopStreamingAudio()
+    }
+  }, [])
+
+  const startMicrophoneStream = async (sampleRate: number, onPcm: (pcm: Int16Array) => void) => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error('当前浏览器不支持麦克风录音')
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, sampleRate },
+    })
+    const audioTracks = stream.getAudioTracks()
+    if (audioTracks.length === 0) {
+      stream.getTracks().forEach((track) => track.stop())
+      throw new Error('没有检测到可用的麦克风输入')
+    }
+    const audioContext = new AudioContext({ sampleRate })
+    await audioContext.resume()
+    const source = audioContext.createMediaStreamSource(stream)
+    const processor = audioContext.createScriptProcessor(4096, 1, 1)
+    processor.onaudioprocess = (event) => {
+      const input = event.inputBuffer.getChannelData(0)
+      micFramesRef.current += 1
+      onPcm(downsampleToPcm16(input, audioContext.sampleRate, sampleRate))
+      paintAsrStats()
+    }
+    source.connect(processor)
+    processor.connect(audioContext.destination)
+    mediaStreamRef.current = stream
+    audioContextRef.current = audioContext
+    audioSourceRef.current = source
+    audioProcessorRef.current = processor
+  }
+
+  const handleFunAsrMessage = (message: FunAsrMessage) => {
+    socketMessagesRef.current += 1
+    setAsrStats((current) => ({ ...current, messages: socketMessagesRef.current }))
+    const text = stringFromUnknown(message.text)
+    if (!text) {
+      setAsrStatus('FunASR 已返回消息')
+      return
+    }
+    const mode = message.mode ?? ''
+    const final = message.is_final === true || mode.includes('offline')
+    if (!final) {
+      setInterimTranscript(text)
+      setAsrStatus('FunASR 正在接收临时识别结果')
+      return
+    }
+    const key = `${message.wav_name ?? 'funasr'}:${message.timestamp ?? text}`
+    if (finalizedFunAsrKeysRef.current.has(key)) return
+    finalizedFunAsrKeysRef.current.add(key)
+    const segment = {
+      id: `funasr-${Date.now()}-${finalizedFunAsrKeysRef.current.size}`,
+      speaker: 'Speaker 1',
+      role: 'FunASR 实时转写',
+      time: formatClock(new Date().toISOString()),
+      text,
+    }
+    setTranscript((items) => [...items, segment])
+    setInterimTranscript('')
+    setAsrStatus('已收到 FunASR 稳定转写结果')
+    void persistProviderTranscript('funasr', [segment])
+  }
+
+  const startFunAsrRecording = async () => {
+    if (!authToken || !sessionId) throw new Error('当前会议还没有可用的后端会话')
+    sentBytesRef.current = 0
+    socketMessagesRef.current = 0
+    micFramesRef.current = 0
+    setAsrStats({ sentKb: 0, messages: 0, micFrames: 0 })
+    const socket = new WebSocket(FUNASR_WS_URL, 'binary')
+    socket.binaryType = 'arraybuffer'
+    setAsrStatus('正在连接本地 FunASR')
+    await new Promise<void>((resolve, reject) => {
+      const timer = window.setTimeout(() => {
+        reject(new Error(`连接本地 FunASR 超时：${FUNASR_WS_URL}`))
+      }, 5000)
+      socket.onopen = () => {
+        window.clearTimeout(timer)
+        resolve()
+      }
+      socket.onerror = () => {
+        window.clearTimeout(timer)
+        reject(new Error(`无法连接本地 FunASR：${FUNASR_WS_URL}`))
+      }
+      socket.onclose = () => {
+        window.clearTimeout(timer)
+        reject(new Error(`本地 FunASR 连接已关闭：${FUNASR_WS_URL}`))
+      }
+    })
+    funAsrSocketRef.current = socket
+    finalizedFunAsrKeysRef.current = new Set()
+    socket.send(
+      JSON.stringify({
+        mode: '2pass',
+        wav_name: `meeting-${sessionId}-${Date.now()}`,
+        wav_format: 'pcm',
+        audio_fs: 16000,
+        is_speaking: true,
+        chunk_size: [5, 10, 5],
+        chunk_interval: 10,
+        itn: true,
+      }),
+    )
+    setAsrStatus('FunASR 已连接，正在发送音频')
+    socket.onmessage = (event) => {
+      if (typeof event.data !== 'string') return
+      try {
+        handleFunAsrMessage(JSON.parse(event.data) as FunAsrMessage)
+      } catch {
+        notify('FunASR 返回了无法解析的结果')
+      }
+    }
+    socket.onerror = () => {
+      setAsrStatus('FunASR WebSocket 出错')
+      notify('FunASR WebSocket 出错')
+    }
+    socket.onclose = () => {
+      if (recordingStateRef.current === 'recording') setAsrStatus('FunASR 连接已关闭，请确认本地服务仍在运行')
+    }
+    await startMicrophoneStream(16000, enqueueFunAsrPcm)
+  }
+
+  const startBrowserRecognition = () => {
+    if (!authToken || !sessionId) {
+      notify('当前会议还没有可用的后端会话')
+      return
+    }
+    const recognition = createRecognition()
+    if (!recognition) {
+      notify('当前浏览器不支持实时语音识别，请使用 Chrome 或 Edge')
+      return
+    }
+    try {
+      recognitionRef.current = recognition
+      shouldRestartRecognitionRef.current = true
+      recordingStartedAtRef.current = Date.now()
+      recognition.start()
+      setRecordingProvider('browser')
+      setRecordingState('recording')
+    } catch {
+      shouldRestartRecognitionRef.current = false
+      notify('录音启动失败，请检查浏览器麦克风权限')
+      setAsrStatus('浏览器识别启动失败')
+    }
+  }
+
+  const startRecording = async () => {
+    if (!authToken || !sessionId) {
+      notify('当前会议还没有可用的后端会话')
+      return
+    }
+    try {
+      await startFunAsrRecording()
+      recordingStartedAtRef.current = Date.now()
+      setRecordingProvider('funasr')
+      setRecordingState('recording')
+      notify('已连接本地 FunASR 实时识别')
+    } catch (error) {
+      stopStreamingAudio()
+      const fallbackMessage =
+        error instanceof Error
+          ? `${error.message}，请先运行 scripts/start-funasr.ps1，已切换浏览器识别`
+          : 'FunASR 启动失败，请先运行 scripts/start-funasr.ps1，已切换浏览器识别'
+      notify(fallbackMessage)
+      setAsrStatus(`FunASR 不可用：${FUNASR_WS_URL}`)
+      startBrowserRecognition()
+    }
+  }
+
+  const pauseRecording = () => {
+    shouldRestartRecognitionRef.current = false
+    recognitionRef.current?.stop()
+    stopStreamingAudio()
+    if (recordingStartedAtRef.current) {
+      elapsedBeforeStartRef.current += Date.now() - recordingStartedAtRef.current
+      setElapsedSeconds(Math.floor(elapsedBeforeStartRef.current / 1000))
+    }
+    recordingStartedAtRef.current = null
+    setInterimTranscript('')
+    setAsrStatus('录音已暂停')
+    setRecordingState('paused')
+  }
+
+  const stopRecording = () => {
+    if (isRecording) {
+      pauseRecording()
+    }
+    shouldRestartRecognitionRef.current = false
+    recognitionRef.current?.stop()
+    recognitionRef.current = null
+    stopStreamingAudio()
+    setRecordingProvider(null)
+    setAsrStatus('录音已停止')
+    setRecordingState('idle')
+  }
+
+  const ask = async (text: string) => {
+    if (!authToken || !sessionId) {
+      notify('当前会议还没有可用的后端会话')
+      return
+    }
+    try {
+      const result = await api.askAssistant(authToken, sessionId, text)
+      setAssistantText(result.answer)
+      setQuestion('')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '助手调用失败')
+    }
+  }
+
+  const endMeeting = async () => {
+    stopRecording()
+    if (!authToken || !sessionId) {
+      setPage('ai-progress')
+      return
+    }
+    try {
+      setPage('ai-progress')
+      const meetingContent = transcript.map((line) => `${line.speaker}: ${line.text}`).join('\n')
+      const draft = await api.generateReportDraft(authToken, sessionId, meetingContent)
+      onReportDraft(draft)
+      setPage('overview')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '生成会议综述失败')
+      setPage('overview')
+    }
   }
 
   return (
@@ -867,11 +1917,11 @@ function LiveMeetingPage({
         <div className="live-top">
           <div>
             <span className="eyebrow">Workspace</span>
-            <h2>2024Q1 战略执行与部门协同议题</h2>
+            <h2>{meeting.title}</h2>
           </div>
           <div className="recording-clock">
-            <span className={`pulse-dot ${paused ? 'paused' : ''}`} />
-            {paused ? '已暂停' : '01:24:15'}
+            <span className={`pulse-dot ${recordingState}`} />
+            {isPaused ? '已暂停' : formatDuration(elapsedSeconds)}
           </div>
         </div>
         <div className="recorder-strip">
@@ -880,21 +1930,44 @@ function LiveMeetingPage({
           </div>
           <div>
             <strong>实时语音转写</strong>
-            <span>{paused ? '录音已暂停，可继续手动补充内容' : '高清模式已开启'}</span>
+            <span>{recordingHint}</span>
           </div>
-          <button className="button secondary" type="button" onClick={() => setPaused((value) => !value)}>
-            <PauseCircle size={16} />
-            {paused ? '继续录音' : '暂停录音'}
+          <button className="button secondary" type="button" onClick={isRecording ? pauseRecording : () => void startRecording()}>
+            {isRecording ? <PauseCircle size={16} /> : <Play size={16} />}
+            {isRecording ? '暂停录音' : isPaused ? '继续录音' : '开始录音'}
           </button>
-          <button className="button danger" type="button" onClick={() => setPage('ai-progress')}>
+          <button className="button danger" type="button" onClick={() => void endMeeting()}>
             <StopCircle size={16} />
             结束会议
           </button>
         </div>
+        <div className="asr-status">
+          <span>{asrStatus}</span>
+          {recordingProvider === 'funasr' && (
+            <small>
+              麦克风帧 {asrStats.micFrames} · 已发送 {asrStats.sentKb} KB · 收到 {asrStats.messages} 条消息
+            </small>
+          )}
+        </div>
         <div className="transcript-stream">
+          {transcript.length === 0 && !interimTranscript && (
+            <div className="transcript-empty">等待麦克风输入，识别出的内容会实时出现在这里。</div>
+          )}
           {transcript.map((line, index) => (
-            <TranscriptLine key={line.id} line={line} live={!paused && index === transcript.length - 1} />
+            <TranscriptLine key={line.id} line={line} live={isRecording && index === transcript.length - 1} />
           ))}
+          {interimTranscript && (
+            <TranscriptLine
+              line={{
+                id: 'interim-transcript',
+                speaker: 'Speaker 1',
+                role: '正在识别',
+                time: formatDuration(elapsedSeconds),
+                text: interimTranscript,
+              }}
+              live
+            />
+          )}
         </div>
       </section>
       <aside className="card assistant-panel">
@@ -903,11 +1976,11 @@ function LiveMeetingPage({
             <Bot size={19} />
             <strong>会议 AI 助手</strong>
           </div>
-          <span>{paused ? '等待继续' : '实时分析中'}</span>
+          <span>{isRecording ? '实时分析中' : isPaused ? '等待继续' : '待开始'}</span>
         </div>
         <div className="quick-prompts">
           {['总结刚才张总的发言重点', '提取目前已确定的待办事项', '分析市场部和研发部的核心分歧点'].map((item) => (
-            <button key={item} type="button" onClick={() => ask(item)}>
+            <button key={item} type="button" onClick={() => void ask(item)}>
               {item}
             </button>
           ))}
@@ -921,7 +1994,7 @@ function LiveMeetingPage({
           <button
             type="button"
             aria-label="发送"
-            onClick={() => (question.trim() ? ask(question) : notify('先输入一个问题'))}
+            onClick={() => (question.trim() ? void ask(question) : notify('先输入一个问题'))}
           >
             <Send size={16} />
           </button>
@@ -970,17 +2043,27 @@ function AiProgressPage({ setPage }: { setPage: (page: Page) => void }) {
 
 function OverviewPage({
   meeting,
+  activeThread,
+  reportDraft,
   setPage,
   openDrawer,
   exportReport,
 }: {
   meeting: MeetingRecord
+  activeThread: Thread | null
+  reportDraft: ReportDraftResponse | null
   setPage: (page: Page) => void
   openDrawer: (kind: DrawerKind) => void
   exportReport: () => void
 }) {
+  const summary = reportDraft?.summary?.content || '会议报告尚未生成或仍在整理中。'
+  const decisionTags = (reportDraft?.decisions ?? [])
+    .map((item) => (typeof item.content === 'string' ? item.content : ''))
+    .filter(Boolean)
+    .slice(0, 3)
   return (
     <div className="page-stack report-page">
+      <Breadcrumb onBack={() => setPage(activeThread ? 'briefing' : 'threads')} label={activeThread ? `我的会议 / ${activeThread.title} / 返回` : '我的会议 / 返回'} />
       <MeetingTabs active="overview" setPage={setPage} />
       <PageHeader
         eyebrow={`${meeting.date} ${meeting.time}`}
@@ -1001,13 +2084,11 @@ function OverviewPage({
             <span>基于当前会议内容和会前快照生成</span>
           </div>
         </div>
-        <blockquote>
-          在 Q3，我们必须将重点从单纯的功能堆砌转移到用户体验的深度打磨上。产品功能优化是基础，但商业模式创新和精准市场推广才是突破增长瓶颈的关键。
-        </blockquote>
+        <blockquote>{summary}</blockquote>
         <div className="keyword-row">
-          <Tag label="用户体验升级" tone="todo" />
-          <Tag label="商业化提速" tone="warning" />
-          <Tag label="数据驱动决策" tone="done" />
+          {(decisionTags.length > 0 ? decisionTags : ['等待会议结论', '请确认草稿', '可继续编辑']).map((tag, index) => (
+            <Tag key={tag} label={tag} tone={index === 0 ? 'todo' : index === 1 ? 'warning' : 'done'} />
+          ))}
         </div>
       </section>
       <div className="project-grid">
@@ -1178,8 +2259,93 @@ function MyTodosPage({
   )
 }
 
-function SettingsPage({ notify, openHelp }: { notify: (message: string) => void; openHelp: () => void }) {
-  const [tested, setTested] = useState(false)
+type ModelConfigMode = 'backend' | 'custom'
+
+const backendModelConfig = {
+  provider: 'OpenAI Compatible',
+  baseUrl: '已由后端配置',
+  apiKey: '已配置，前端不可见',
+  model: 'gpt-5.5',
+}
+
+const initialCustomModelConfig = {
+  provider: 'OpenAI Compatible',
+  baseUrl: '',
+  apiKey: '',
+  model: 'gpt-5.5',
+}
+
+function SettingsPage({
+  authToken,
+  initialSettings,
+  notify,
+  openHelp,
+  onSettingsChange,
+}: {
+  authToken: string | null
+  initialSettings: SettingsState | null
+  notify: (message: string) => void
+  openHelp: () => void
+  onSettingsChange: (settings: SettingsState | null) => void
+}) {
+  const [tested, setTested] = useState<string>('')
+  const [configMode, setConfigMode] = useState<ModelConfigMode>(initialSettings?.activeSource === 'user' ? 'custom' : 'backend')
+  const [customConfig, setCustomConfig] = useState(() => ({
+    ...initialCustomModelConfig,
+    provider: initialSettings?.custom.provider || initialCustomModelConfig.provider,
+    baseUrl: initialSettings?.custom.baseUrl || initialCustomModelConfig.baseUrl,
+    model: initialSettings?.custom.model || initialCustomModelConfig.model,
+    apiKey: '',
+  }))
+  const backendConfig = initialSettings
+    ? {
+        provider: initialSettings.system.provider,
+        baseUrl: initialSettings.system.baseUrlConfigured ? '已由后端配置' : '未配置',
+        apiKey: initialSettings.system.apiKeyConfigured ? '已配置，前端不可见' : '未配置',
+        model: initialSettings.system.model,
+      }
+    : backendModelConfig
+  const isCustom = configMode === 'custom'
+
+  const selectConfigMode = (mode: ModelConfigMode) => {
+    setConfigMode(mode)
+    setTested('')
+  }
+  const updateCustomConfig = (config: Partial<typeof initialCustomModelConfig>) => {
+    setCustomConfig((current) => ({ ...current, ...config }))
+    setTested('')
+  }
+
+  const testConnection = async () => {
+    if (!authToken) return
+    try {
+      const result = await api.testSettings(authToken)
+      setTested(result.ok ? `${isCustom ? '自定义配置' : '后端默认配置'}连接成功，延迟 ${result.latencyMs}ms` : result.message || '连接失败')
+    } catch (error) {
+      setTested(error instanceof Error ? error.message : '连接失败')
+    }
+  }
+
+  const saveSettings = async () => {
+    if (!authToken) return
+    if (!isCustom) {
+      notify('当前已使用后端默认配置')
+      return
+    }
+    try {
+      await api.saveCustomSettings(authToken, {
+        provider: customConfig.provider,
+        baseUrl: customConfig.baseUrl,
+        model: customConfig.model,
+        apiKey: customConfig.apiKey,
+      })
+      const latest = await api.getSettings(authToken)
+      onSettingsChange(toSettingsState(latest))
+      notify('自定义模型配置已保存')
+    } catch (error) {
+      notify(error instanceof Error ? error.message : '保存配置失败')
+    }
+  }
 
   return (
     <div className="settings-layout">
@@ -1187,44 +2353,86 @@ function SettingsPage({ notify, openHelp }: { notify: (message: string) => void;
         <PageHeader
           eyebrow="会议助手 v0.1"
           title="系统设置"
-          description="查看后端模型服务配置状态。API Key 只来自部署环境变量，不在前端录入。"
+          description="默认使用后端统一模型服务，也可以为当前工作区配置自定义 OpenAI Compatible 服务。"
         />
         <section className="card settings-card">
           <div className="section-heading">
             <Settings size={20} />
             <div>
               <h3>模型服务配置</h3>
-              <span>OpenAI Compatible，后端统一封装调用</span>
+              <span>{isCustom ? '当前使用自定义配置，保存后由后端代理调用' : '当前使用后端默认配置'}</span>
             </div>
           </div>
+          <div className="view-toggle config-toggle" aria-label="模型配置来源">
+            <button className={!isCustom ? 'active' : ''} type="button" onClick={() => selectConfigMode('backend')}>
+              后端默认
+            </button>
+            <button className={isCustom ? 'active' : ''} type="button" onClick={() => selectConfigMode('custom')}>
+              自定义
+            </button>
+          </div>
           <div className="settings-grid">
-            <ReadonlyField label="提供商" value="OpenAI Compatible" />
-            <ReadonlyField label="Base URL" value="已由后端配置" />
-            <ReadonlyField label="API Key" value="已配置，前端不可见" />
-            <ReadonlyField label="模型版本" value="gpt-5.5" />
+            <label className="readonly-field">
+              <span>提供商</span>
+              <input
+                value={isCustom ? customConfig.provider : backendConfig.provider}
+                readOnly={!isCustom}
+                onChange={(event) => updateCustomConfig({ provider: event.target.value })}
+              />
+            </label>
+            <label className="readonly-field">
+              <span>Base URL</span>
+              <input
+                value={isCustom ? customConfig.baseUrl : backendConfig.baseUrl}
+                readOnly={!isCustom}
+                placeholder="https://api.example.com/v1"
+                onChange={(event) => updateCustomConfig({ baseUrl: event.target.value })}
+              />
+            </label>
+            <label className="readonly-field">
+              <span>API Key</span>
+              <input
+                value={isCustom ? customConfig.apiKey : backendConfig.apiKey}
+                readOnly={!isCustom}
+                type={isCustom ? 'password' : 'text'}
+                placeholder="sk-..."
+                onChange={(event) => updateCustomConfig({ apiKey: event.target.value })}
+              />
+            </label>
+            <label className="readonly-field">
+              <span>模型版本</span>
+              <input
+                value={isCustom ? customConfig.model : backendConfig.model}
+                readOnly={!isCustom}
+                placeholder="gpt-5.5"
+                onChange={(event) => updateCustomConfig({ model: event.target.value })}
+              />
+            </label>
           </div>
           <div className="notice">
             <ShieldCheck size={17} />
-            配置更改应在后端环境完成；前端只展示脱敏状态和连接测试结果。
+            {isCustom
+              ? '自定义配置会提交到后端保存并脱敏展示；API Key 不会在页面明文回显。'
+              : '使用后端默认模型服务时，浏览器不会接触 API Key。'}
           </div>
           <div className="form-actions">
-            <button className="button secondary" type="button" onClick={() => setTested(true)}>
+            <button className="button secondary" type="button" onClick={() => void testConnection()}>
               <RefreshCw size={16} />
               测试连接
             </button>
-            <button className="button primary" type="button" onClick={() => notify('展示偏好已保存')}>
-              保存展示偏好
+            <button className="button primary" type="button" onClick={() => void saveSettings()}>
+              保存配置
             </button>
           </div>
-          {tested && <Tag label="连接成功，延迟 820ms" tone="done" />}
+          {tested && <Tag label={tested} tone={tested.includes('成功') ? 'done' : 'warning'} />}
         </section>
       </section>
       <aside className="right-rail">
         <RailCard title="配置文档" onTitleClick={openHelp}>
-          <p className="rail-copy">模型配置通过后端环境变量读取，避免 API Key 暴露给浏览器。</p>
+          <p className="rail-copy">后端默认配置适合大多数会议；自定义配置适合私有模型、企业网关或专属额度。</p>
         </RailCard>
         <RailCard title="安全提示" onTitleClick={openHelp}>
-          <p className="rail-copy">日志不能记录完整 prompt、会议全文、Authorization token 或模型输出全文。</p>
+          <p className="rail-copy">自定义 API Key 应由后端加密保存，日志不能记录 Authorization token 或会议全文。</p>
         </RailCard>
       </aside>
     </div>
@@ -1302,21 +2510,29 @@ function Modal({
   close,
   saveThread,
   saveMeeting,
+  threads,
+  selectedThreadId,
   exportCurrent,
 }: {
   kind: ModalKind
   close: () => void
   saveThread: (title: string, summary: string) => void
-  saveMeeting: (title: string) => void
+  saveMeeting: (title: string, threadId?: string, newThread?: { title: string; summary: string }) => void
+  threads: Thread[]
+  selectedThreadId: string
   exportCurrent: () => void
 }) {
   const [title, setTitle] = useState('')
   const [summary, setSummary] = useState('')
+  const [meetingTitle, setMeetingTitle] = useState('')
+  const [newThreadTitle, setNewThreadTitle] = useState('')
+  const [newThreadSummary, setNewThreadSummary] = useState('')
+  const [threadId, setThreadId] = useState(selectedThreadId)
 
   if (!kind) return null
 
   const titleMap: Record<Exclude<ModalKind, null>, string> = {
-    'new-thread': '新建议题',
+    'new-thread': '创建议题文件夹',
     'new-meeting': '新建会议',
     notifications: '通知',
     help: '帮助',
@@ -1335,14 +2551,14 @@ function Modal({
         {kind === 'new-thread' && (
           <div className="form-grid">
             <label>
-              议题名称
+              议题文件夹名称
               <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：客户 A 项目推进" />
             </label>
             <label>
               背景说明
               <textarea value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="这组会议主要追踪什么？" />
             </label>
-            <button className="button primary wide" type="button" onClick={() => saveThread(title || '未命名会议议题', summary || '暂无背景说明')}>
+            <button className="button primary wide" type="button" onClick={() => saveThread(title || '未命名议题文件夹', summary.trim())}>
               创建议题
             </button>
           </div>
@@ -1350,17 +2566,46 @@ function Modal({
         {kind === 'new-meeting' && (
           <div className="form-grid">
             <label>
-              所属议题
-              <select defaultValue="thread-q1">
-                <option value="thread-q1">2024Q1 战略执行与部门协同议题</option>
-                <option value="new">快速新建议题</option>
+              归入议题
+              <select value={threadId} onChange={(event) => setThreadId(event.target.value)}>
+                <option value="">不归入议题（独立会议）</option>
+                <option value={NEW_THREAD_OPTION}>新建议题</option>
+                {threads.map((thread) => (
+                  <option value={thread.id} key={thread.id}>
+                    {thread.title}
+                  </option>
+                ))}
               </select>
             </label>
+            {threadId === NEW_THREAD_OPTION && (
+              <>
+                <label>
+                  议题名称
+                  <input value={newThreadTitle} onChange={(event) => setNewThreadTitle(event.target.value)} placeholder="例如：客户 A 项目推进" />
+                </label>
+                <label>
+                  背景说明
+                  <textarea value={newThreadSummary} onChange={(event) => setNewThreadSummary(event.target.value)} placeholder="这组会议主要追踪什么？" />
+                </label>
+              </>
+            )}
             <label>
               会议标题
-              <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="例如：5 月 17 日周会" />
+              <input value={meetingTitle} onChange={(event) => setMeetingTitle(event.target.value)} placeholder="例如：5 月 17 日周会" />
             </label>
-            <button className="button primary wide" type="button" onClick={() => saveMeeting(title || '未命名会议')}>
+            <button
+              className="button primary wide"
+              type="button"
+              onClick={() =>
+                saveMeeting(
+                  meetingTitle || '未命名会议',
+                  threadId,
+                  threadId === NEW_THREAD_OPTION
+                    ? { title: newThreadTitle || meetingTitle || '未命名议题', summary: newThreadSummary }
+                    : undefined,
+                )
+              }
+            >
               创建会议
             </button>
           </div>
@@ -1373,7 +2618,7 @@ function Modal({
         )}
         {kind === 'help' && (
           <div className="help-list">
-            <p>会议议题承载连续会议上下文；会议记录是单次会议报告。</p>
+            <p>议题像文件夹，会议像文件；同一议题下的后续会议会继承前序会议上下文。</p>
             <p>待办可以从任何位置完成或编辑，后续会接入后端 API。</p>
             <p>设置页不会显示或保存模型 API Key。</p>
           </div>
@@ -1497,6 +2742,7 @@ function Drawer({
                 <option value="pending">待处理</option>
                 <option value="in_progress">进行中</option>
                 <option value="done">已完成</option>
+                <option value="canceled">已取消</option>
               </select>
             </label>
             <label>
@@ -1680,7 +2926,9 @@ function MiniMeeting({ meeting, onClick }: { meeting: MeetingRecord; onClick: ()
     <button className="mini-meeting" type="button" onClick={onClick}>
       <CalendarDays size={16} />
       <span>{meeting.title}</span>
-      <small>{meeting.todoCount} 个待办</small>
+      <small>
+        {meeting.date} · {meeting.time} · {meeting.todoCount} 个待办
+      </small>
     </button>
   )
 }
@@ -1813,15 +3061,6 @@ function MatrixColumn({
   )
 }
 
-function ReadonlyField({ label, value }: { label: string; value: string }) {
-  return (
-    <label className="readonly-field">
-      <span>{label}</span>
-      <input value={value} readOnly />
-    </label>
-  )
-}
-
 function Tag({ label, tone = 'muted' }: { label: string; tone?: string }) {
   return <span className={`tag ${tone}`}>{label}</span>
 }
@@ -1846,6 +3085,263 @@ function matchesTodoFilters(todo: ActionItem, filters: { status: string; priorit
   const statusOk = filters.status === 'all' || todo.status === filters.status
   const priorityOk = filters.priority === 'all' || todo.priority === filters.priority
   return statusOk && priorityOk
+}
+
+function isStandaloneThread(thread: Thread) {
+  return thread.summary === STANDALONE_THREAD_BACKGROUND || thread.title === STANDALONE_THREAD_TITLE
+}
+
+function sortMeetings(items: MeetingRecord[]) {
+  return [...items].sort((a, b) => getMeetingTime(b) - getMeetingTime(a))
+}
+
+function getMeetingTime(meeting: MeetingRecord) {
+  const explicitTime = Date.parse(meeting.sortAt)
+  if (!Number.isNaN(explicitTime)) return explicitTime
+  const firstTime = meeting.time.split(' ')[0] || '00:00'
+  const inferredTime = Date.parse(`${meeting.date}T${firstTime}`)
+  return Number.isNaN(inferredTime) ? 0 : inferredTime
+}
+
+function meetingCreatedAt(meeting: MeetingRecord) {
+  return meeting.time === '待安排' ? meeting.date : `${meeting.date} ${meeting.time}`
+}
+
+function displayParticipants(value: string) {
+  return value === '当前账号上下文' ? '我' : value
+}
+
+function displayThreadSummary(value: string) {
+  return value === '暂无背景说明' ? '' : value
+}
+
+function toThread(item: ThreadListItem): Thread {
+  return {
+    id: item.id,
+    title: item.title,
+    summary: item.summary || item.background || '',
+    risk: item.risk ?? item.highRiskCount ?? 0,
+    updatedAt: formatDateTime(item.updatedAt),
+    members: ['我'],
+  }
+}
+
+function toThreadLike(item: { id: string; title: string; background?: string }): Thread {
+  return {
+    id: item.id,
+    title: item.title,
+    summary: item.background || '',
+    risk: 0,
+    updatedAt: '刚刚',
+    members: ['我'],
+  }
+}
+
+function toMeetingRecord(
+  item:
+    | SessionDetailResponse
+    | {
+        id: string
+        title: string
+        status?: string
+        summary?: string
+        startedAt?: string | null
+        endedAt?: string | null
+        createdAt?: string
+        updatedAt?: string
+        todoCount?: number
+      },
+): MeetingRecord {
+  const baseTime = item.startedAt || item.createdAt || item.updatedAt || new Date().toISOString()
+  return {
+    id: item.id,
+    title: item.title,
+    date: formatDateOnly(baseTime),
+    time: formatTimeRange(item.startedAt, item.endedAt),
+    sortAt: baseTime,
+    participants: '当前账号上下文',
+    todoCount: item.todoCount ?? 0,
+  }
+}
+
+function toBriefing(data: PreparationResponse) {
+  return {
+    focus: data.suggestedFocus?.join('；') || '请确认本次会议的关键目标、风险和负责人。',
+    agenda: data.suggestedAgenda?.length ? data.suggestedAgenda : ['同步上次待办进展', '确认本次关键决策'],
+    consensus: data.lastConsensus ?? [],
+    decisions: data.lastDecisions ?? [],
+    questions: data.openQuestions ?? [],
+  }
+}
+
+function toPreparationSnapshot(briefing: typeof initialBriefing) {
+  return {
+    lastConsensus: briefing.consensus,
+    lastDecisions: briefing.decisions,
+    openActionItems: [],
+    progressUpdates: [],
+    openQuestions: briefing.questions,
+    risks: [],
+    suggestedFocus: briefing.focus ? [briefing.focus] : [],
+    suggestedAgenda: briefing.agenda,
+    manualNotes: [],
+    warnings: [],
+  }
+}
+
+function toTranscript(item: SessionDetailResponse['transcriptSegments'][number]): TranscriptItem {
+  return {
+    id: item.id,
+    speaker: item.speakerText || 'Speaker 1',
+    role: item.source === 'edited' ? '已编辑' : item.source === 'manual' ? '手动记录' : '实时转写',
+    time: formatClock(item.startedAt || item.endedAt || new Date().toISOString()),
+    text: item.text,
+  }
+}
+
+function toTodo(item: Record<string, unknown>): ActionItem {
+  const priority = normalizePriority(stringValue(item.priority))
+  const status = normalizeTodoStatus(stringValue(item.status))
+  return {
+    id: stringValue(item.id) || `todo-${Date.now()}`,
+    title: stringValue(item.title) || stringValue(item.description) || '未命名待办',
+    owner: stringValue(item.owner) || stringValue(item.ownerText) || '待确认',
+    due: stringValue(item.due) || stringValue(item.dueDate) || '待定',
+    priority,
+    status,
+    importance: stringValue(item.importance) === 'high' ? 'high' : 'low',
+    urgency: stringValue(item.urgency) === 'high' ? 'high' : 'low',
+    threadId: stringValue(item.threadId),
+    meetingId: stringValue(item.meetingId) || stringValue(item.sessionId),
+    risk: normalizeRisk(stringValue(item.risk) || stringValue(item.riskLevel)),
+  }
+}
+
+function mergeTodos(current: ActionItem[], incoming: ActionItem[]) {
+  const byId = new Map(current.map((item) => [item.id, item]))
+  incoming.forEach((item) => {
+    byId.set(item.id, item)
+  })
+  return [...byId.values()]
+}
+
+function toSettingsState(data: LlmSettingsResponse): SettingsState {
+  return {
+    system: {
+      provider: data.provider,
+      baseUrlConfigured: data.baseUrlConfigured,
+      model: data.model,
+      apiKeyConfigured: data.apiKeyConfigured,
+    },
+    custom: {
+      provider: data.custom.provider,
+      baseUrl: data.custom.baseUrl,
+      model: data.custom.model,
+      apiKeyConfigured: data.custom.apiKeyConfigured,
+    },
+    activeSource: data.activeSource,
+  }
+}
+
+function normalizePriority(value: string): Priority {
+  const upper = value.toUpperCase()
+  if (upper === 'P0' || upper === 'URGENT') return 'P0'
+  if (upper === 'P1' || upper === 'HIGH') return 'P1'
+  if (upper === 'P2' || upper === 'MEDIUM') return 'P2'
+  return 'P3'
+}
+
+function normalizeTodoStatus(value: string): TodoStatus {
+  if (value === 'done') return 'done'
+  if (value === 'in_progress') return 'in_progress'
+  if (value === 'canceled') return 'canceled'
+  return 'pending'
+}
+
+function normalizeRisk(value: string): ActionItem['risk'] {
+  if (value === 'high_risk') return 'high_risk'
+  if (value === 'at_risk') return 'at_risk'
+  return 'normal'
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' ? value : ''
+}
+
+function formatDateTime(value?: string | null) {
+  if (!value) return '刚刚'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+function formatDateOnly(value?: string | null) {
+  if (!value) return '待定'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function formatClock(value?: string | null) {
+  if (!value) return '00:00:00'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`
+}
+
+function formatDuration(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(safeSeconds / 3600)
+  const minutes = Math.floor((safeSeconds % 3600) / 60)
+  const remainingSeconds = safeSeconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`
+}
+
+function downsampleToPcm16(input: Float32Array, inputSampleRate: number, outputSampleRate: number) {
+  if (outputSampleRate === inputSampleRate) return floatToPcm16(input)
+  const sampleRateRatio = inputSampleRate / outputSampleRate
+  const outputLength = Math.floor(input.length / sampleRateRatio)
+  const output = new Int16Array(outputLength)
+  for (let index = 0; index < outputLength; index += 1) {
+    const start = Math.floor(index * sampleRateRatio)
+    const end = Math.min(Math.floor((index + 1) * sampleRateRatio), input.length)
+    let sum = 0
+    for (let sampleIndex = start; sampleIndex < end; sampleIndex += 1) {
+      sum += input[sampleIndex]
+    }
+    const average = sum / Math.max(1, end - start)
+    output[index] = clampPcmSample(average)
+  }
+  return output
+}
+
+function floatToPcm16(input: Float32Array) {
+  const output = new Int16Array(input.length)
+  for (let index = 0; index < input.length; index += 1) {
+    output[index] = clampPcmSample(input[index])
+  }
+  return output
+}
+
+function clampPcmSample(sample: number) {
+  const clamped = Math.max(-1, Math.min(1, sample))
+  return clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff
+}
+
+function concatInt16Arrays(left: Int16Array, right: Int16Array) {
+  const output = new Int16Array(left.length + right.length)
+  output.set(left, 0)
+  output.set(right, left.length)
+  return output
+}
+
+function stringFromUnknown(value: unknown) {
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function formatTimeRange(start?: string | null, end?: string | null) {
+  if (!start && !end) return '待安排'
+  return `${formatClock(start)} - ${formatClock(end)}`
 }
 
 function emptyTodo(): ActionItem {

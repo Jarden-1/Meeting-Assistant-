@@ -478,16 +478,22 @@
   overflow-x: auto;
 }
 
+.thread-group {
+  min-width: 860px;
+  display: grid;
+  position: relative;
+}
+
 .table-row,
 .data-row {
-  min-width: 760px;
+  min-width: 860px;
   display: grid;
-  grid-template-columns: minmax(320px, 1.8fr) 90px 90px 160px 150px;
+  grid-template-columns: 34px minmax(240px, 1.8fr) 70px 150px 130px 150px;
   align-items: center;
   gap: 12px;
   border: 0;
   border-top: 1px solid #eef0f3;
-  padding: 14px 12px;
+  padding: 12px;
   background: transparent;
   text-align: left;
   color: #1f2329;
@@ -505,6 +511,70 @@
 
 .thread-row:hover {
   background: #f8f9fa;
+}
+
+.thread-row-main {
+  grid-column: 2 / span 4;
+  display: grid;
+  grid-template-columns: minmax(240px, 1.8fr) 70px 150px 130px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.meeting-row-main {
+  grid-column: 2 / span 4;
+  display: grid;
+  grid-template-columns: minmax(240px, 1.8fr) 70px 150px 130px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.table-labels span:first-child {
+  grid-column: 1 / span 2;
+}
+
+.expand-button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #646a73;
+  cursor: pointer;
+}
+
+.expand-button:hover {
+  background: #eef4fe;
+  color: #3370ff;
+}
+
+.row-actions {
+  grid-column: 6;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.muted-cell {
+  color: #646a73;
+  font-size: 13px;
 }
 
 .table-labels,
@@ -531,11 +601,6 @@
   color: #646a73;
 }
 
-.risk-number {
-  color: #f54a45;
-  font-weight: 700;
-}
-
 .member-stack {
   display: flex;
 }
@@ -552,6 +617,161 @@
   color: #646a73;
   font-size: 11px;
   font-style: normal;
+}
+
+.danger-icon {
+  justify-self: end;
+  color: #f54a45;
+}
+
+.danger-icon:hover {
+  background: #fff0f0;
+}
+
+.standalone-meeting-list {
+  display: grid;
+  gap: 8px;
+}
+
+.standalone-meeting-row {
+  min-height: 58px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 34px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #1f2329;
+  cursor: pointer;
+  text-align: left;
+}
+
+.standalone-meeting-main {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.move-meeting-select {
+  height: 32px;
+  width: 108px;
+  min-width: 0;
+  border: 1px solid #dee0e3;
+  border-radius: 4px;
+  padding: 0 8px;
+  background: #fff;
+  color: #424655;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.standalone-meeting-row:hover {
+  background: #f8f9fa;
+}
+
+.standalone-meeting-row strong,
+.standalone-meeting-row small {
+  display: block;
+}
+
+.standalone-meeting-row small {
+  margin-top: 3px;
+  color: #646a73;
+}
+
+.thread-meeting-row {
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 34px minmax(240px, 1.8fr) 70px 150px 130px 150px;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-top: 1px solid #eef0f3;
+  padding: 10px 12px;
+  background: #fff;
+  color: #424655;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  position: relative;
+}
+
+.thread-meeting-row::before {
+  content: '';
+  position: absolute;
+  left: 38px;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: #d7deea;
+}
+
+.thread-meeting-row::after {
+  content: '';
+  position: absolute;
+  left: 38px;
+  top: 50%;
+  width: 18px;
+  height: 1px;
+  background: #d7deea;
+}
+
+.thread-group .thread-meeting-row:first-of-type::before {
+  top: -28px;
+}
+
+.thread-group .thread-meeting-row:last-child::before {
+  bottom: 50%;
+}
+
+.thread-meeting-main {
+  grid-column: 1 / span 2;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  padding: 0 0 0 52px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.thread-meeting-row:hover {
+  background: #f8f9fa;
+}
+
+.thread-meeting-row svg {
+  color: #646a73;
+}
+
+.thread-meeting-row strong,
+.thread-meeting-row small {
+  display: block;
+}
+
+.thread-meeting-row strong {
+  color: #1f2329;
+  font-size: 13px;
+}
+
+.thread-meeting-row small {
+  margin-top: 3px;
+  color: #646a73;
+  font-size: 12px;
 }
 
 .briefing-layout,
@@ -725,8 +945,18 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  background: #9aa0a6;
+  box-shadow: 0 0 0 6px rgba(154, 160, 166, 0.12);
+}
+
+.pulse-dot.recording {
   background: #f54a45;
   box-shadow: 0 0 0 6px rgba(245, 74, 69, 0.12);
+}
+
+.pulse-dot.paused {
+  background: #f6a609;
+  box-shadow: 0 0 0 6px rgba(246, 166, 9, 0.14);
 }
 
 .recorder-strip {
@@ -746,6 +976,24 @@
   color: #646a73;
 }
 
+.asr-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  color: #424655;
+  background: #fff;
+  font-size: 13px;
+}
+
+.asr-status small {
+  color: #646a73;
+}
+
 .mic-orb {
   width: 48px;
   height: 48px;
@@ -760,6 +1008,16 @@
   display: grid;
   gap: 12px;
   margin-top: 18px;
+}
+
+.transcript-empty {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  border: 1px dashed #d8dce3;
+  border-radius: 8px;
+  color: #646a73;
+  background: #fbfcfe;
 }
 
 .transcript-line {
@@ -1113,9 +1371,18 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.config-toggle {
+  margin: 16px 0;
+}
+
 .readonly-field {
   display: grid;
   gap: 8px;
+}
+
+.readonly-field input[readonly] {
+  background: #f8f9fa;
+  color: #646a73;
 }
 
 .notice {
