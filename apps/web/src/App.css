@@ -1004,6 +1004,24 @@
   color: #646a73;
 }
 
+.enhancement-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #dbe7ff;
+  border-radius: 6px;
+  color: #2454c6;
+  background: #f7faff;
+  font-size: 13px;
+}
+
+.enhancement-status small {
+  color: #646a73;
+}
+
 .mic-orb {
   width: 48px;
   height: 48px;

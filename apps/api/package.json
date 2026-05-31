@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "db:setup": "pnpm prisma:generate && pnpm prisma:push",
-    "lint": "tsc -p tsconfig.build.json --noEmit"
+    "lint": "tsc -p tsconfig.build.json --noEmit",
+    "enhancement:mock-worker": "node scripts/mock-enhancement-worker.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.21",
@@ -22,13 +23,14 @@
     "@prisma/client": "^6.19.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.3",
+    "express": "^5.2.1",
+    "prisma": "^6.19.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^24.12.4",
-    "prisma": "^6.19.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
   }

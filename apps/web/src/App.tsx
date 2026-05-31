@@ -48,6 +48,7 @@ import {
 import { AudioCapture } from './asr/audio/AudioCapture'
 import { FunAsrProvider } from './asr/providers/FunAsrProvider'
 import type { AsrEvent } from './asr/types'
+import { useEnhancementChunks } from './asr/useEnhancementChunks'
 import './App.css'
 
 type Page =
@@ -1485,6 +1486,7 @@ function LiveMeetingPage({
   const recordingStartedAtRef = useRef<number | null>(null)
   const elapsedBeforeStartRef = useRef(0)
   const assistantMessageCounterRef = useRef(0)
+  const enhancement = useEnhancementChunks(authToken, sessionId, notify)
 
   const isRecording = recordingState === 'recording'
   const isPaused = recordingState === 'paused'
@@ -1568,6 +1570,7 @@ function LiveMeetingPage({
   }
 
   const stopAsr = async () => {
+    audioCaptureRef.current?.flushEnhancementChunk()
     audioCaptureRef.current?.stop()
     audioCaptureRef.current = null
 
@@ -1605,6 +1608,13 @@ function LiveMeetingPage({
     await capture.start({
       onPcm: (pcm) => provider.pushAudio(pcm),
       onStats: (stats) => handleAsrEvent({ type: 'stats', micFrames: stats.micFrames, rms: stats.rms, peak: stats.peak, clippingRatio: stats.clippingRatio }),
+      onEnhancementChunk: (chunk) => {
+        void enhancement.upload(chunk)
+      },
+      enhancementChunkSeconds: enhancement.chunkSeconds,
+      enhancementOverlapSeconds: enhancement.overlapSeconds,
+      enhancementInitialChunkIndex: enhancement.nextChunkIndexRef.current,
+      enhancementStartOffsetSeconds: elapsedBeforeStartRef.current / 1000,
     })
     funAsrProviderRef.current = provider
     audioCaptureRef.current = capture
@@ -1786,6 +1796,10 @@ function LiveMeetingPage({
               麦克风帧 {asrStats.micFrames} · 已发送 {asrStats.sentKb} KB · 收到 {asrStats.messages} 条消息 · RMS {asrStats.rms.toFixed(3)} · 峰值 {asrStats.peak.toFixed(2)} · 削波 {(asrStats.clippingRatio * 100).toFixed(2)}%
             </small>
           )}
+        </div>
+        <div className="enhancement-status">
+          <span>{enhancement.status}</span>
+          <small>{enhancement.summary}</small>
         </div>
         <div className="transcript-stream">
           {transcript.length === 0 && !interimTranscript && (
@@ -3377,11 +3391,17 @@ function toPreparationSnapshot(briefing: typeof initialBriefing) {
 }
 
 function toTranscript(item: SessionDetailResponse['transcriptSegments'][number]): TranscriptItem {
+  const sourceLabels: Record<string, string> = {
+    edited: '已编辑',
+    manual: '手动记录',
+    enhanced: 'MOSS 精修',
+    transcription: '实时转写',
+  }
   return {
     id: item.id,
     speaker: item.speakerText || 'Speaker 1',
-    role: item.source === 'edited' ? '已编辑' : item.source === 'manual' ? '手动记录' : '实时转写',
-    time: formatClock(item.startedAt || item.endedAt || new Date().toISOString()),
+    role: sourceLabels[item.source] ?? '实时转写',
+    time: item.startMs !== undefined && item.startMs !== null ? formatDuration(item.startMs / 1000) : formatClock(item.startedAt || item.endedAt || new Date().toISOString()),
     text: item.text,
   }
 }

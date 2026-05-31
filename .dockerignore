@@ -1,0 +1,15 @@
+.git
+.ace-tool
+.playwright-mcp
+node_modules
+**/node_modules
+dist
+**/dist
+*.log
+*.tsbuildinfo
+.env
+.env.*
+funasr-offline-segments
+funasr-runtime-resources
+vendor
+deploy/production.env

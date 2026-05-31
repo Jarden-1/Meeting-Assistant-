@@ -1,8 +1,12 @@
 import type { CurrentUser } from './types';
 
-declare module 'express-serve-static-core' {
-  interface Request {
-    requestId?: string;
-    user?: CurrentUser;
+declare global {
+  namespace Express {
+    interface Request {
+      requestId?: string;
+      user?: CurrentUser;
+    }
   }
 }
+
+export {};

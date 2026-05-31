@@ -1,5 +1,11 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:3001/api/v1'
-export const FUNASR_WS_URL = (import.meta.env.VITE_FUNASR_WS_URL as string | undefined) ?? 'ws://127.0.0.1:10095'
+const browserOrigin = typeof window === 'undefined' ? '' : window.location.origin
+const browserWsOrigin =
+  typeof window === 'undefined'
+    ? ''
+    : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? `${browserOrigin}/api/v1`
+export const FUNASR_WS_URL = (import.meta.env.VITE_FUNASR_WS_URL as string | undefined) ?? `${browserWsOrigin}/funasr`
 
 export type ApiEnvelope<T> = {
   data: T
@@ -95,6 +101,8 @@ export type SessionDetailResponse = {
     speakerText: string
     startedAt?: string | null
     endedAt?: string | null
+    startMs?: number | null
+    endMs?: number | null
     text: string
     source: string
     sequence: number
@@ -166,6 +174,22 @@ export type TencentAsrSessionResponse = {
   websocketUrl: string
   expiresAt: string
   instructions?: Record<string, unknown>
+}
+
+export type EnhancementChunkResponse = {
+  id: string
+  chunkIndex: number
+  audioStartMs: number
+  audioEndMs: number
+  overlapMs: number
+  provider: string
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'canceled'
+  errorMessage: string
+  queuedAt: string
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 type RequestOptions = {
@@ -315,6 +339,52 @@ export const api = {
         body,
       },
     )
+  },
+  createEnhancementChunk(
+    token: string,
+    sessionId: string,
+    body: {
+      chunkIndex: number
+      audioStartMs: number
+      audioEndMs: number
+      overlapMs?: number
+      provider?: string
+      audioBase64?: string
+      audioMimeType?: string
+    },
+  ) {
+    return request<EnhancementChunkResponse>(`/sessions/${sessionId}/transcriptions/enhancement-chunks`, {
+      method: 'POST',
+      token,
+      body,
+    })
+  },
+  listEnhancementChunks(token: string, sessionId: string) {
+    return request<{ items: EnhancementChunkResponse[] }>(`/sessions/${sessionId}/transcriptions/enhancement-chunks`, {
+      token,
+    })
+  },
+  completeEnhancementChunk(
+    token: string,
+    sessionId: string,
+    chunkId: string,
+    body: {
+      provider?: string
+      segments: Array<{
+        localSpeaker?: string
+        speakerText?: string
+        startMs: number
+        endMs: number
+        text: string
+        confidence?: number
+      }>
+    },
+  ) {
+    return request<EnhancementChunkResponse>(`/sessions/${sessionId}/transcriptions/enhancement-chunks/${chunkId}/result`, {
+      method: 'POST',
+      token,
+      body,
+    })
   },
   askAssistant(token: string, sessionId: string, question: string, liveTranscriptSnapshot: AssistantTranscriptSnapshotItem[] = []) {
     return request<AssistantAskResponse>(`/sessions/${sessionId}/assistant/ask`, {

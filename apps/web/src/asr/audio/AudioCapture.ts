@@ -8,6 +8,19 @@ const WORKLET_URL = '/asr/pcm-capture-worklet.js'
 type AudioCaptureOptions = {
   onPcm: (pcm: Int16Array) => void
   onStats?: (stats: AudioStats) => void
+  onEnhancementChunk?: (chunk: EnhancementAudioChunk) => void
+  enhancementChunkSeconds?: number
+  enhancementOverlapSeconds?: number
+  enhancementInitialChunkIndex?: number
+  enhancementStartOffsetSeconds?: number
+}
+
+export type EnhancementAudioChunk = {
+  chunkIndex: number
+  startMs: number
+  endMs: number
+  overlapMs: number
+  wavBlob: Blob
 }
 
 export class AudioCapture {
@@ -18,6 +31,14 @@ export class AudioCapture {
   private monitor: GainNode | null = null
   private pending = new Int16Array()
   private frames: Int16Array[] = []
+  private enhancementFrames: Int16Array[] = []
+  private enhancementChunkIndex = 0
+  private enhancementStartSample = 0
+  private totalSamples = 0
+  private enhancementOptions: Pick<
+    AudioCaptureOptions,
+    'onEnhancementChunk' | 'enhancementChunkSeconds' | 'enhancementOverlapSeconds'
+  > = {}
   private micFrames = 0
   private lastStats = { rms: 0, peak: 0, clippingRatio: 0 }
 
@@ -35,6 +56,14 @@ export class AudioCapture {
       },
     })
     const audioContext = new AudioContext()
+    this.enhancementOptions = {
+      onEnhancementChunk: options.onEnhancementChunk,
+      enhancementChunkSeconds: options.enhancementChunkSeconds,
+      enhancementOverlapSeconds: options.enhancementOverlapSeconds,
+    }
+    this.enhancementChunkIndex = options.enhancementInitialChunkIndex ?? 0
+    this.enhancementStartSample = Math.floor((options.enhancementStartOffsetSeconds ?? 0) * TARGET_SAMPLE_RATE)
+    this.totalSamples = this.enhancementStartSample
     await audioContext.audioWorklet.addModule(WORKLET_URL)
     await audioContext.resume()
 
@@ -100,8 +129,21 @@ export class AudioCapture {
     this.monitor = null
     this.pending = new Int16Array()
     this.frames = []
+    this.enhancementFrames = []
+    this.enhancementChunkIndex = 0
+    this.enhancementStartSample = 0
+    this.totalSamples = 0
+    this.enhancementOptions = {}
     this.micFrames = 0
     this.lastStats = { rms: 0, peak: 0, clippingRatio: 0 }
+  }
+
+  flushEnhancementChunk() {
+    if (!this.enhancementOptions.onEnhancementChunk) return
+    const pcm = concatInt16Frames(this.enhancementFrames)
+    if (pcm.length < TARGET_SAMPLE_RATE * 2) return
+    this.emitEnhancementChunk(pcm)
+    this.enhancementFrames = []
   }
 
   private pushPcm(pcm: Int16Array, onPcm: (pcm: Int16Array) => void) {
@@ -110,8 +152,50 @@ export class AudioCapture {
       const frame = this.pending.slice(0, SAMPLES_PER_FRAME)
       this.pending = this.pending.slice(SAMPLES_PER_FRAME)
       this.frames.push(frame)
+      this.pushEnhancementFrame(frame)
       onPcm(frame)
     }
+  }
+
+  private pushEnhancementFrame(frame: Int16Array) {
+    const onEnhancementChunk = this.enhancementOptions.onEnhancementChunk
+    if (!onEnhancementChunk) {
+      this.totalSamples += frame.length
+      return
+    }
+
+    this.enhancementFrames.push(frame)
+    this.totalSamples += frame.length
+
+    const chunkSeconds = this.enhancementOptions.enhancementChunkSeconds ?? 600
+    const chunkSamples = Math.max(1, Math.floor(chunkSeconds * TARGET_SAMPLE_RATE))
+    const currentSamples = this.totalSamples - this.enhancementStartSample
+    if (currentSamples < chunkSamples) return
+
+    const pcm = concatInt16Frames(this.enhancementFrames)
+    this.emitEnhancementChunk(pcm)
+
+    const overlapSeconds = this.enhancementOptions.enhancementOverlapSeconds ?? 120
+    const overlapSamples = Math.min(pcm.length, Math.floor(overlapSeconds * TARGET_SAMPLE_RATE))
+    const retained = overlapSamples > 0 ? pcm.slice(pcm.length - overlapSamples) : new Int16Array()
+    this.enhancementFrames = retained.length > 0 ? [retained] : []
+    this.enhancementStartSample = this.totalSamples - retained.length
+  }
+
+  private emitEnhancementChunk(pcm: Int16Array) {
+    const onEnhancementChunk = this.enhancementOptions.onEnhancementChunk
+    if (!onEnhancementChunk) return
+    const startMs = Math.round((this.enhancementStartSample / TARGET_SAMPLE_RATE) * 1000)
+    const endMs = Math.round(((this.enhancementStartSample + pcm.length) / TARGET_SAMPLE_RATE) * 1000)
+    const overlapMs = Math.round(((this.enhancementOptions.enhancementOverlapSeconds ?? 120) * 1000))
+    onEnhancementChunk({
+      chunkIndex: this.enhancementChunkIndex,
+      startMs,
+      endMs,
+      overlapMs,
+      wavBlob: new Blob([encodeWav(pcm)], { type: 'audio/wav' }),
+    })
+    this.enhancementChunkIndex += 1
   }
 }
 

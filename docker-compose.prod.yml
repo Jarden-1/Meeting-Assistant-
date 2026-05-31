@@ -1,0 +1,109 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    env_file:
+      - deploy/production.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-meeting_assistant}
+    volumes:
+      - meeting-assistant-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-meeting_assistant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: build
+    env_file:
+      - deploy/production.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-meeting_assistant}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["sh", "-lc", "apps/api/node_modules/.bin/prisma db push --schema apps/api/prisma/schema.prisma"]
+    profiles:
+      - tools
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - deploy/production.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-meeting_assistant}?schema=public
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-13001}:3001"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-13080}:80"
+
+  enhancement-mock-worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    profiles:
+      - mock-enhancement
+    command: ["node", "scripts/mock-enhancement-worker.mjs"]
+    ports:
+      - "127.0.0.1:${ENHANCEMENT_MOCK_WORKER_HOST_PORT:-18081}:18081"
+
+  funasr:
+    image: registry.cn-hangzhou.aliyuncs.com/funasr_repo/funasr:funasr-runtime-sdk-online-cpu-0.1.13
+    privileged: true
+    restart: unless-stopped
+    profiles:
+      - funasr
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        exec /workspace/FunASR/runtime/websocket/build/bin/funasr-wss-server-2pass \
+          --download-model-dir /workspace/models \
+          --model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-onnx \
+          --online-model-dir damo/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-online-onnx \
+          --vad-dir damo/speech_fsmn_vad_zh-cn-16k-common-onnx \
+          --punc-dir damo/punc_ct-transformer_zh-cn-common-vad_realtime-vocab272727-onnx \
+          --itn-dir thuduj12/fst_itn_zh \
+          --lm-dir damo/speech_ngram_lm_zh-cn-ai-wesp-fst \
+          --decoder-thread-num ${FUNASR_DECODER_THREAD_NUM:-4} \
+          --io-thread-num ${FUNASR_IO_THREAD_NUM:-1} \
+          --model-thread-num ${FUNASR_MODEL_THREAD_NUM:-1} \
+          --port 10095 \
+          --certfile 0
+    volumes:
+      - ./funasr-runtime-resources/models:/workspace/models
+    ports:
+      - "127.0.0.1:${FUNASR_HOST_PORT:-11095}:10095"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -lc '</dev/tcp/127.0.0.1/10095'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+volumes:
+  meeting-assistant-postgres-data:
+  meeting-assistant-funasr-models:
